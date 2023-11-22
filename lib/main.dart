@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'ffi.dart' if (dart.library.html) 'ffi_web.dart';
 
 void main() {
@@ -65,6 +69,9 @@ class _MyHomePageState extends State<MyHomePage> {
   late Future<Platform> platform;
   late Future<bool> isRelease;
 
+  Uint8List? jxlImage;
+  ui.Image? rawImage;
+
   @override
   void initState() {
     super.initState();
@@ -88,71 +95,144 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text("You're running on"),
-            // To render the results of a Future, a FutureBuilder is used which
-            // turns a Future into an AsyncSnapshot, which can be used to
-            // determine if an error was encountered, data is ready or otherwise.
-            FutureBuilder(
-              // We await for both futures in a tuple, then uwnrap their results inside the builder.
-              // Recent versions of Dart allow the type of the snapshot to be correctly inferred.
-              // Since Future.wait predates Dart 3 and does not understand tuples, we use the join method
-              // declared earlier to concurrently await two futures while preserving type safety.
-              future: (platform, isRelease).join(),
-              builder: (context, snap) {
-                final style = Theme.of(context).textTheme.headlineMedium;
-                if (snap.error != null) {
-                  // An error has been encountered, so give an appropriate response and
-                  // pass the error details to an unobstructive tooltip.
-                  debugPrint(snap.error.toString());
-                  return Tooltip(
-                    message: snap.error.toString(),
-                    child: Text('Unknown OS', style: style),
-                  );
-                }
+        child: SingleChildScrollView(
+          child: Column(
+            // Column is also a layout widget. It takes a list of children and
+            // arranges them vertically. By default, it sizes itself to fit its
+            // children horizontally, and tries to be as tall as its parent.
+            //
+            // Invoke "debug painting" (press "p" in the console, choose the
+            // "Toggle Debug Paint" action from the Flutter Inspector in Android
+            // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
+            // to see the wireframe for each widget.
+            //
+            // Column has various properties to control how it sizes itself and
+            // how it positions its children. Here we use mainAxisAlignment to
+            // center the children vertically; the main axis here is the vertical
+            // axis because Columns are vertical (the cross axis would be
+            // horizontal).
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              FilledButton(
+                  onPressed: () async {
+                    //
+                    final loadTime = DateTime.now();
+                    final jxlBytes =
+                        // await rootBundle.load('assets/testalpha.jxl');
+                        await rootBundle.load('assets/jxlImage.jxl');
+                    final jxlUint8List = jxlBytes.buffer.asUint8List();
+                    print('load Time: ${DateTime.now().difference(loadTime)}');
+                    final decodeTime = DateTime.now();
+                    final frame = await api.decodeSingleFrameImage(
+                        jxlBytes: jxlUint8List);
+                    print(
+                        'decode Time: ${DateTime.now().difference(decodeTime)}');
+                    final (width, height, duration) =
+                        (frame.width, frame.height, frame.duration);
+                    final data = frame.data;
+                    print('width: $width');
+                    print('height: $height');
+                    print('duration: $duration');
 
-                // Guard return here, the data is not ready yet.
-                final data = snap.data;
-                if (data == null) return const CircularProgressIndicator();
+                    print('datalength: ${data.length}');
 
-                final (platform, release) = data;
-                final releaseText = release ? 'Release' : 'Debug';
+                    final convertTime = DateTime.now();
 
-                // Another feature introduced in Dart 3 is switch expressions,
-                // allowing exhaustive matching over enums or sealed classes
-                // similar to Rust's match expressions. Note that all possible values
-                // of Platform are present here; should additional values be added,
-                // this expression would not compile.
-                final text = switch (platform) {
-                  Platform.Android => 'Android',
-                  Platform.Ios => 'iOS',
-                  Platform.MacApple => 'MacOS with Apple Silicon',
-                  Platform.MacIntel => 'MacOS',
-                  Platform.Windows => 'Windows',
-                  Platform.Unix => 'Unix',
-                  Platform.Wasm => 'the Web',
-                  Platform.Unknown => 'Unknown OS',
-                };
-                return Text('$text ($releaseText)', style: style);
-              },
-            )
-          ],
+                    var targetRgbaLength = width * height * 4;
+                    print('rgbalength: $targetRgbaLength');
+
+                    final hasAlpha = data.length == targetRgbaLength;
+
+                    late final Float32List? modifiedData;
+
+                    if (!hasAlpha) {
+                      print('MODIFYING...');
+                      modifiedData = Float32List(targetRgbaLength);
+
+                      print('modifiedData.length: ${modifiedData.length}');
+                      for (var i = 0; i < data.length; i += 3) {
+                        final index = i * 4 ~/ 3;
+                        modifiedData[index] = data[i];
+                        modifiedData[index + 1] = data[i + 1];
+                        modifiedData[index + 2] = data[i + 2];
+                        modifiedData[index + 3] = 1.0;
+                      }
+                    } else {
+                      modifiedData = null;
+                    }
+
+                    print(
+                        'convert Time: ${DateTime.now().difference(convertTime)}');
+
+                    ui.decodeImageFromPixels(
+                        (modifiedData ?? data).buffer.asUint8List(),
+                        width,
+                        height,
+                        ui.PixelFormat.rgbaFloat32, (result) {
+                      setState(() {
+                        rawImage = result;
+                      });
+                    });
+
+                    print('Done Decode');
+                    print('final time: ${DateTime.now().difference(loadTime)}');
+
+                    // setState(() {
+                    //   jxlImage = rgba8888List;
+                    // });
+                  },
+                  child: Text('Test JXL')),
+              // Image.memory(jxlImage ?? Uint8List(0)),
+              RawImage(image: rawImage, fit: BoxFit.fitWidth),
+              const Text("You're running on"),
+              // To render the results of a Future, a FutureBuilder is used which
+              // turns a Future into an AsyncSnapshot, which can be used to
+              // determine if an error was encountered, data is ready or otherwise.
+              FutureBuilder(
+                // We await for both futures in a tuple, then uwnrap their results inside the builder.
+                // Recent versions of Dart allow the type of the snapshot to be correctly inferred.
+                // Since Future.wait predates Dart 3 and does not understand tuples, we use the join method
+                // declared earlier to concurrently await two futures while preserving type safety.
+                future: (platform, isRelease).join(),
+                builder: (context, snap) {
+                  final style = Theme.of(context).textTheme.headlineMedium;
+                  if (snap.error != null) {
+                    // An error has been encountered, so give an appropriate response and
+                    // pass the error details to an unobstructive tooltip.
+                    debugPrint(snap.error.toString());
+                    return Tooltip(
+                      message: snap.error.toString(),
+                      child: Text('Unknown OS', style: style),
+                    );
+                  }
+
+                  // Guard return here, the data is not ready yet.
+                  final data = snap.data;
+                  if (data == null) return const CircularProgressIndicator();
+
+                  final (platform, release) = data;
+                  final releaseText = release ? 'Release' : 'Debug';
+
+                  // Another feature introduced in Dart 3 is switch expressions,
+                  // allowing exhaustive matching over enums or sealed classes
+                  // similar to Rust's match expressions. Note that all possible values
+                  // of Platform are present here; should additional values be added,
+                  // this expression would not compile.
+                  final text = switch (platform) {
+                    Platform.Android => 'Android',
+                    Platform.Ios => 'iOS',
+                    Platform.MacApple => 'MacOS with Apple Silicon',
+                    Platform.MacIntel => 'MacOS',
+                    Platform.Windows => 'Windows',
+                    Platform.Unix => 'Unix',
+                    Platform.Wasm => 'the Web',
+                    Platform.Unknown => 'Unknown OS',
+                  };
+                  return Text('$text ($releaseText)', style: style);
+                },
+              )
+            ],
+          ),
         ),
       ),
     );

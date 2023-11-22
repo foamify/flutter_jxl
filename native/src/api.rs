@@ -2,6 +2,11 @@
 // When adding new code to your project, note that only items used
 // here will be transformed to their Dart equivalents.
 
+use std::io::Cursor;
+
+use flutter_rust_bridge::ZeroCopyBuffer;
+use jxl_oxide::JxlImage;
+
 // A plain enum without any fields. This is similar to Dart- or C-style enums.
 // flutter_rust_bridge is capable of generating code for enums with fields
 // (@freezed classes in Dart and tagged unions in C).
@@ -56,4 +61,63 @@ pub fn platform() -> Platform {
 // and they are automatically converted to camelCase on the Dart side.
 pub fn rust_release_mode() -> bool {
     cfg!(not(debug_assertions))
+}
+
+pub fn decode_single_frame_image(jxl_bytes: Vec<u8>) -> Frame {
+    let reader = Cursor::new(jxl_bytes);
+
+    println!("putting into image");
+    let image = JxlImage::from_reader(reader).expect("Failed to read image");
+
+    println!("putting into render");
+    let render = image.render_frame(0).expect("Failed to render frame");
+
+    println!("putting into data");
+    // let _data = convert_vec_f32_to_vec_u8(render.image().buf().to_vec());
+    let _data = render.image_all_channels().buf().to_vec();
+
+    println!("Channels: {}", render.image().channels());
+
+    // TODO: somehow this is performing around 10 - 20 times worse than dart.
+    // // if there's only 3 channels, convert to rgba to match flutter
+    // if render.image().channels() == 3 {
+    //     let mut rgba = vec![0.0; _data.len() * 4 / 3];
+    //     let len = _data.len();
+    //     for i in (0..len).step_by(3) {
+    //         let index = i * 4 / 3;
+    //         unsafe {
+    //             *rgba.get_unchecked_mut(index) = *_data.get_unchecked(i);
+    //             *rgba.get_unchecked_mut(index + 1) = *_data.get_unchecked(i + 1);
+    //             *rgba.get_unchecked_mut(index + 2) = *_data.get_unchecked(i + 2);
+    //             *rgba.get_unchecked_mut(index + 3) = 1.0;
+    //         }
+    //     }
+    //     println!("putting into frame");
+    //     let frame = Frame {
+    //         data: ZeroCopyBuffer(rgba),
+    //         duration: render.duration() as f64,
+    //         width: image.width(),
+    //         height: image.height(),
+    //     };
+    //     println!("returning frame");
+    //     return frame;
+    // }
+
+    println!("putting into frame");
+    let frame = Frame {
+        data: ZeroCopyBuffer(_data),
+        duration: render.duration() as f64,
+        width: image.width(),
+        height: image.height(),
+    };
+
+    println!("returning frame");
+    return frame;
+}
+
+pub struct Frame {
+    pub data: ZeroCopyBuffer<Vec<f32>>,
+    pub duration: f64,
+    pub width: u32,
+    pub height: u32,
 }
