@@ -9,5 +9,7 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-anyhow = "1"
-flutter_rust_bridge = "1"
+flutter_rust_bridge = "=1.82.3"
+jxl-oxide = "0.5.1"
+lazy_static = "1.4.0"
+cmake = "=0.1.48"
