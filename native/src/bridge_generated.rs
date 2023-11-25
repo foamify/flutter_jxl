@@ -42,19 +42,99 @@ fn wire_rust_release_mode_impl(port_: MessagePort) {
         move || move |task_callback| Result::<_, ()>::Ok(rust_release_mode()),
     )
 }
-fn wire_decode_single_frame_image_impl(
+fn wire_init_decoder_impl(
     port_: MessagePort,
     jxl_bytes: impl Wire2Api<Vec<u8>> + UnwindSafe,
+    key: impl Wire2Api<String> + UnwindSafe,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, Frame, _>(
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, JxlInfo, _>(
         WrapInfo {
-            debug_name: "decode_single_frame_image",
+            debug_name: "init_decoder",
             port: Some(port_),
             mode: FfiCallMode::Normal,
         },
         move || {
             let api_jxl_bytes = jxl_bytes.wire2api();
-            move |task_callback| Result::<_, ()>::Ok(decode_single_frame_image(api_jxl_bytes))
+            let api_key = key.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(init_decoder(api_jxl_bytes, api_key))
+        },
+    )
+}
+fn wire_reset_decoder_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, bool, _>(
+        WrapInfo {
+            debug_name: "reset_decoder",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_key = key.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(reset_decoder(api_key))
+        },
+    )
+}
+fn wire_dispose_decoder_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, bool, _>(
+        WrapInfo {
+            debug_name: "dispose_decoder",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_key = key.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(dispose_decoder(api_key))
+        },
+    )
+}
+fn wire_is_jxl_impl(port_: MessagePort, jxl_bytes: impl Wire2Api<Vec<u8>> + UnwindSafe) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, bool, _>(
+        WrapInfo {
+            debug_name: "is_jxl",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_jxl_bytes = jxl_bytes.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(is_jxl(api_jxl_bytes))
+        },
+    )
+}
+fn wire_get_frame_count_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, usize, _>(
+        WrapInfo {
+            debug_name: "get_frame_count",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_key = key.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(get_frame_count(api_key))
+        },
+    )
+}
+fn wire_get_channel_count_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, usize, _>(
+        WrapInfo {
+            debug_name: "get_channel_count",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_key = key.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(get_channel_count(api_key))
+        },
+    )
+}
+fn wire_get_next_frame_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, Frame, _>(
+        WrapInfo {
+            debug_name: "get_next_frame",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_key = key.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(get_next_frame(api_key))
         },
     )
 }
@@ -80,6 +160,7 @@ where
         (!self.is_null()).then(|| self.wire2api())
     }
 }
+
 impl Wire2Api<u8> for u8 {
     fn wire2api(self) -> u8 {
         self
@@ -101,6 +182,24 @@ impl support::IntoDart for Frame {
 }
 impl support::IntoDartExceptPrimitive for Frame {}
 impl rust2dart::IntoIntoDart<Frame> for Frame {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
+impl support::IntoDart for JxlInfo {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.image_count.into_into_dart().into_dart(),
+            self.duration.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for JxlInfo {}
+impl rust2dart::IntoIntoDart<JxlInfo> for JxlInfo {
     fn into_into_dart(self) -> Self {
         self
     }

@@ -60,24 +60,132 @@ class NativeImpl implements Native {
         argNames: [],
       );
 
-  Future<Frame> decodeSingleFrameImage(
-      {required Uint8List jxlBytes, dynamic hint}) {
+  Future<JxlInfo> initDecoder(
+      {required Uint8List jxlBytes, required String key, dynamic hint}) {
+    var arg0 = _platform.api2wire_uint_8_list(jxlBytes);
+    var arg1 = _platform.api2wire_String(key);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_init_decoder(port_, arg0, arg1),
+      parseSuccessData: _wire2api_jxl_info,
+      parseErrorData: null,
+      constMeta: kInitDecoderConstMeta,
+      argValues: [jxlBytes, key],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kInitDecoderConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "init_decoder",
+        argNames: ["jxlBytes", "key"],
+      );
+
+  Future<bool> resetDecoder({required String key, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(key);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_reset_decoder(port_, arg0),
+      parseSuccessData: _wire2api_bool,
+      parseErrorData: null,
+      constMeta: kResetDecoderConstMeta,
+      argValues: [key],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kResetDecoderConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "reset_decoder",
+        argNames: ["key"],
+      );
+
+  Future<bool> disposeDecoder({required String key, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(key);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_dispose_decoder(port_, arg0),
+      parseSuccessData: _wire2api_bool,
+      parseErrorData: null,
+      constMeta: kDisposeDecoderConstMeta,
+      argValues: [key],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kDisposeDecoderConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "dispose_decoder",
+        argNames: ["key"],
+      );
+
+  Future<bool> isJxl({required Uint8List jxlBytes, dynamic hint}) {
     var arg0 = _platform.api2wire_uint_8_list(jxlBytes);
     return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) =>
-          _platform.inner.wire_decode_single_frame_image(port_, arg0),
-      parseSuccessData: _wire2api_frame,
+      callFfi: (port_) => _platform.inner.wire_is_jxl(port_, arg0),
+      parseSuccessData: _wire2api_bool,
       parseErrorData: null,
-      constMeta: kDecodeSingleFrameImageConstMeta,
+      constMeta: kIsJxlConstMeta,
       argValues: [jxlBytes],
       hint: hint,
     ));
   }
 
-  FlutterRustBridgeTaskConstMeta get kDecodeSingleFrameImageConstMeta =>
+  FlutterRustBridgeTaskConstMeta get kIsJxlConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
-        debugName: "decode_single_frame_image",
+        debugName: "is_jxl",
         argNames: ["jxlBytes"],
+      );
+
+  Future<int> getFrameCount({required String key, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(key);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_get_frame_count(port_, arg0),
+      parseSuccessData: _wire2api_usize,
+      parseErrorData: null,
+      constMeta: kGetFrameCountConstMeta,
+      argValues: [key],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kGetFrameCountConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "get_frame_count",
+        argNames: ["key"],
+      );
+
+  Future<int> getChannelCount({required String key, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(key);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_get_channel_count(port_, arg0),
+      parseSuccessData: _wire2api_usize,
+      parseErrorData: null,
+      constMeta: kGetChannelCountConstMeta,
+      argValues: [key],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kGetChannelCountConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "get_channel_count",
+        argNames: ["key"],
+      );
+
+  Future<Frame> getNextFrame({required String key, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(key);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_get_next_frame(port_, arg0),
+      parseSuccessData: _wire2api_frame,
+      parseErrorData: null,
+      constMeta: kGetNextFrameConstMeta,
+      argValues: [key],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kGetNextFrameConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "get_next_frame",
+        argNames: ["key"],
       );
 
   void dispose() {
@@ -121,12 +229,28 @@ class NativeImpl implements Native {
     return raw as int;
   }
 
+  JxlInfo _wire2api_jxl_info(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return JxlInfo(
+      width: _wire2api_u32(arr[0]),
+      height: _wire2api_u32(arr[1]),
+      imageCount: _wire2api_usize(arr[2]),
+      duration: _wire2api_f64(arr[3]),
+    );
+  }
+
   Platform _wire2api_platform(dynamic raw) {
     return Platform.values[raw as int];
   }
 
   int _wire2api_u32(dynamic raw) {
     return raw as int;
+  }
+
+  int _wire2api_usize(dynamic raw) {
+    return castInt(raw);
   }
 }
 
@@ -143,6 +267,11 @@ class NativePlatform extends FlutterRustBridgeBase<NativeWire> {
   NativePlatform(ffi.DynamicLibrary dylib) : super(NativeWire(dylib));
 
 // Section: api2wire
+
+  @protected
+  ffi.Pointer<wire_uint_8_list> api2wire_String(String raw) {
+    return api2wire_uint_8_list(utf8.encoder.convert(raw));
+  }
 
   @protected
   ffi.Pointer<wire_uint_8_list> api2wire_uint_8_list(Uint8List raw) {
@@ -279,23 +408,127 @@ class NativeWire implements FlutterRustBridgeWireBase {
   late final _wire_rust_release_mode =
       _wire_rust_release_modePtr.asFunction<void Function(int)>();
 
-  void wire_decode_single_frame_image(
+  void wire_init_decoder(
+    int port_,
+    ffi.Pointer<wire_uint_8_list> jxl_bytes,
+    ffi.Pointer<wire_uint_8_list> key,
+  ) {
+    return _wire_init_decoder(
+      port_,
+      jxl_bytes,
+      key,
+    );
+  }
+
+  late final _wire_init_decoderPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64, ffi.Pointer<wire_uint_8_list>,
+              ffi.Pointer<wire_uint_8_list>)>>('wire_init_decoder');
+  late final _wire_init_decoder = _wire_init_decoderPtr.asFunction<
+      void Function(
+          int, ffi.Pointer<wire_uint_8_list>, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_reset_decoder(
+    int port_,
+    ffi.Pointer<wire_uint_8_list> key,
+  ) {
+    return _wire_reset_decoder(
+      port_,
+      key,
+    );
+  }
+
+  late final _wire_reset_decoderPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(
+              ffi.Int64, ffi.Pointer<wire_uint_8_list>)>>('wire_reset_decoder');
+  late final _wire_reset_decoder = _wire_reset_decoderPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_dispose_decoder(
+    int port_,
+    ffi.Pointer<wire_uint_8_list> key,
+  ) {
+    return _wire_dispose_decoder(
+      port_,
+      key,
+    );
+  }
+
+  late final _wire_dispose_decoderPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64,
+              ffi.Pointer<wire_uint_8_list>)>>('wire_dispose_decoder');
+  late final _wire_dispose_decoder = _wire_dispose_decoderPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_is_jxl(
     int port_,
     ffi.Pointer<wire_uint_8_list> jxl_bytes,
   ) {
-    return _wire_decode_single_frame_image(
+    return _wire_is_jxl(
       port_,
       jxl_bytes,
     );
   }
 
-  late final _wire_decode_single_frame_imagePtr = _lookup<
-          ffi.NativeFunction<
-              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_uint_8_list>)>>(
-      'wire_decode_single_frame_image');
-  late final _wire_decode_single_frame_image =
-      _wire_decode_single_frame_imagePtr
-          .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+  late final _wire_is_jxlPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(
+              ffi.Int64, ffi.Pointer<wire_uint_8_list>)>>('wire_is_jxl');
+  late final _wire_is_jxl = _wire_is_jxlPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_get_frame_count(
+    int port_,
+    ffi.Pointer<wire_uint_8_list> key,
+  ) {
+    return _wire_get_frame_count(
+      port_,
+      key,
+    );
+  }
+
+  late final _wire_get_frame_countPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64,
+              ffi.Pointer<wire_uint_8_list>)>>('wire_get_frame_count');
+  late final _wire_get_frame_count = _wire_get_frame_countPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_get_channel_count(
+    int port_,
+    ffi.Pointer<wire_uint_8_list> key,
+  ) {
+    return _wire_get_channel_count(
+      port_,
+      key,
+    );
+  }
+
+  late final _wire_get_channel_countPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64,
+              ffi.Pointer<wire_uint_8_list>)>>('wire_get_channel_count');
+  late final _wire_get_channel_count = _wire_get_channel_countPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_get_next_frame(
+    int port_,
+    ffi.Pointer<wire_uint_8_list> key,
+  ) {
+    return _wire_get_next_frame(
+      port_,
+      key,
+    );
+  }
+
+  late final _wire_get_next_framePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64,
+              ffi.Pointer<wire_uint_8_list>)>>('wire_get_next_frame');
+  late final _wire_get_next_frame = _wire_get_next_framePtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
 
   ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(
     int len,

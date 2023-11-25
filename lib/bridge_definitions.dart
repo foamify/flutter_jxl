@@ -17,10 +17,34 @@ abstract class Native {
 
   FlutterRustBridgeTaskConstMeta get kRustReleaseModeConstMeta;
 
-  Future<Frame> decodeSingleFrameImage(
-      {required Uint8List jxlBytes, dynamic hint});
+  Future<JxlInfo> initDecoder(
+      {required Uint8List jxlBytes, required String key, dynamic hint});
 
-  FlutterRustBridgeTaskConstMeta get kDecodeSingleFrameImageConstMeta;
+  FlutterRustBridgeTaskConstMeta get kInitDecoderConstMeta;
+
+  Future<bool> resetDecoder({required String key, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kResetDecoderConstMeta;
+
+  Future<bool> disposeDecoder({required String key, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDisposeDecoderConstMeta;
+
+  Future<bool> isJxl({required Uint8List jxlBytes, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kIsJxlConstMeta;
+
+  Future<int> getFrameCount({required String key, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kGetFrameCountConstMeta;
+
+  Future<int> getChannelCount({required String key, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kGetChannelCountConstMeta;
+
+  Future<Frame> getNextFrame({required String key, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kGetNextFrameConstMeta;
 }
 
 class Frame {
@@ -34,6 +58,20 @@ class Frame {
     required this.duration,
     required this.width,
     required this.height,
+  });
+}
+
+class JxlInfo {
+  final int width;
+  final int height;
+  final int imageCount;
+  final double duration;
+
+  const JxlInfo({
+    required this.width,
+    required this.height,
+    required this.imageCount,
+    required this.duration,
   });
 }
 

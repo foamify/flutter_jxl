@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_rust_bridge_template/image.dart';
 import 'ffi.dart' if (dart.library.html) 'ffi_web.dart';
 
 void main() {
@@ -113,77 +113,27 @@ class _MyHomePageState extends State<MyHomePage> {
             // horizontal).
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              FilledButton(
-                  onPressed: () async {
-                    //
-                    final loadTime = DateTime.now();
-                    final jxlBytes =
-                        // await rootBundle.load('assets/testalpha.jxl');
-                        await rootBundle.load('assets/jxlImage.jxl');
-                    final jxlUint8List = jxlBytes.buffer.asUint8List();
-                    print('load Time: ${DateTime.now().difference(loadTime)}');
-                    final decodeTime = DateTime.now();
-                    final frame = await api.decodeSingleFrameImage(
-                        jxlBytes: jxlUint8List);
-                    print(
-                        'decode Time: ${DateTime.now().difference(decodeTime)}');
-                    final (width, height, duration) =
-                        (frame.width, frame.height, frame.duration);
-                    final data = frame.data;
-                    print('width: $width');
-                    print('height: $height');
-                    print('duration: $duration');
-
-                    print('datalength: ${data.length}');
-
-                    final convertTime = DateTime.now();
-
-                    var targetRgbaLength = width * height * 4;
-                    print('rgbalength: $targetRgbaLength');
-
-                    final hasAlpha = data.length == targetRgbaLength;
-
-                    late final Float32List? modifiedData;
-
-                    if (!hasAlpha) {
-                      print('MODIFYING...');
-                      modifiedData = Float32List(targetRgbaLength);
-
-                      print('modifiedData.length: ${modifiedData.length}');
-                      for (var i = 0; i < data.length; i += 3) {
-                        final index = i * 4 ~/ 3;
-                        modifiedData[index] = data[i];
-                        modifiedData[index + 1] = data[i + 1];
-                        modifiedData[index + 2] = data[i + 2];
-                        modifiedData[index + 3] = 1.0;
-                      }
-                    } else {
-                      modifiedData = null;
-                    }
-
-                    print(
-                        'convert Time: ${DateTime.now().difference(convertTime)}');
-
-                    ui.decodeImageFromPixels(
-                        (modifiedData ?? data).buffer.asUint8List(),
-                        width,
-                        height,
-                        ui.PixelFormat.rgbaFloat32, (result) {
-                      setState(() {
-                        rawImage = result;
-                      });
-                    });
-
-                    print('Done Decode');
-                    print('final time: ${DateTime.now().difference(loadTime)}');
-
-                    // setState(() {
-                    //   jxlImage = rgba8888List;
-                    // });
-                  },
-                  child: Text('Test JXL')),
-              // Image.memory(jxlImage ?? Uint8List(0)),
-              RawImage(image: rawImage, fit: BoxFit.fitWidth),
+              // RawImage(image: rawImage, fit: BoxFit.fitWidth),
+              JxlImage.asset(
+                'assets/testanim.jxl',
+                key: Key('testanim'),
+              ),
+              JxlImage.asset(
+                'assets/testanim2.jxl',
+                key: Key('testanim2'),
+              ),
+              JxlImage.asset(
+                'assets/testalpha.jxl',
+                key: Key('testalpha'),
+              ),
+              JxlImage.asset(
+                'assets/jxlImage.jxl',
+                key: Key('jxlImage'),
+              ),
+              JxlImage.asset(
+                'assets/testhdr.jxl',
+                key: Key('testhdr'),
+              ),
               const Text("You're running on"),
               // To render the results of a Future, a FutureBuilder is used which
               // turns a Future into an AsyncSnapshot, which can be used to
