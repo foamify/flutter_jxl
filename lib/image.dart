@@ -1184,8 +1184,6 @@ class MultiFrameJxlCodec implements JxlCodec {
       api.getNextFrame(key: _key, cropInfo: _cropInfo).then((frame) {
         final (data, width, height) = (frame.data, frame.width, frame.height);
 
-        print([width, height]);
-
         var targetRgbaLength = width * height * 4;
 
         final hasAlpha = data.length == targetRgbaLength;
