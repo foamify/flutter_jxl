@@ -39,6 +39,7 @@ class JxlImage extends StatefulWidget {
   final bool gaplessPlayback;
   final ImageFrameBuilder? frameBuilder;
   final ImageLoadingBuilder? loadingBuilder;
+  final CropInfo? cropInfo;
 
   @override
   State<JxlImage> createState() => JxlImageState();
@@ -67,6 +68,7 @@ class JxlImage extends StatefulWidget {
     this.gaplessPlayback = false,
     this.frameBuilder,
     this.loadingBuilder,
+    this.cropInfo,
   });
 
   JxlImage.file(
@@ -93,10 +95,12 @@ class JxlImage extends StatefulWidget {
     this.excludeFromSemantics = false,
     this.gaplessPlayback = false,
     this.frameBuilder,
+    this.cropInfo,
   })  : image = FileJxlImage(
           file,
           scale: scale,
           overrideDurationMs: overrideDurationMs,
+          cropInfo: cropInfo,
         ),
         loadingBuilder = null;
 
@@ -125,11 +129,13 @@ class JxlImage extends StatefulWidget {
     this.gaplessPlayback = false,
     this.frameBuilder,
     AssetBundle? bundle,
+    this.cropInfo,
   })  : image = AssetJxlCodecImage(
           name,
           scale: scale,
           overrideDurationMs: overrideDurationMs,
           bundle: bundle,
+          cropInfo: cropInfo,
         ),
         loadingBuilder = null;
 
@@ -159,11 +165,13 @@ class JxlImage extends StatefulWidget {
     this.frameBuilder,
     this.loadingBuilder,
     Map<String, String>? headers,
+    this.cropInfo,
   }) : image = NetworkJxlImage(
           url,
           scale: scale,
           overrideDurationMs: overrideDurationMs,
           headers: headers,
+          cropInfo: cropInfo,
         );
 
   JxlImage.memory(
@@ -190,10 +198,12 @@ class JxlImage extends StatefulWidget {
     this.excludeFromSemantics = false,
     this.gaplessPlayback = false,
     this.frameBuilder,
+    this.cropInfo,
   })  : image = MemoryJxlImage(
           bytes,
           scale: scale,
           overrideDurationMs: overrideDurationMs,
+          cropInfo: cropInfo,
         ),
         loadingBuilder = null;
 }
@@ -252,7 +262,9 @@ class JxlImageState extends State<JxlImage> with WidgetsBindingObserver {
       _imageStream!.addListener(_getListener(recreateListener: true));
       _imageStream!.removeListener(oldListener);
     }
-    if (widget.image != oldWidget.image) {
+    if (widget.image != oldWidget.image ||
+        widget.cropInfo != oldWidget.cropInfo) {
+      widget.image.evict();
       api.disposeDecoder(key: oldWidget.image.hashCode.toString());
       _resolveImage();
     }
@@ -489,11 +501,13 @@ class FileJxlImage extends ImageProvider<FileJxlImage> {
     this.file, {
     this.scale = 1.0,
     this.overrideDurationMs = -1,
+    this.cropInfo,
   });
 
   final File file;
   final double scale;
   final int? overrideDurationMs;
+  final CropInfo? cropInfo;
 
   @override
   Future<FileJxlImage> obtainKey(ImageConfiguration configuration) {
@@ -538,6 +552,7 @@ class FileJxlImage extends ImageProvider<FileJxlImage> {
       key: hashCode,
       jxlBytes: bytes,
       overrideDurationMs: overrideDurationMs,
+      cropInfo: cropInfo,
     );
     await codec.ready();
 
@@ -549,11 +564,12 @@ class FileJxlImage extends ImageProvider<FileJxlImage> {
     if (other.runtimeType != runtimeType) return false;
     return other is FileJxlImage &&
         other.file.path == file.path &&
-        other.scale == scale;
+        other.scale == scale &&
+        other.cropInfo == cropInfo;
   }
 
   @override
-  int get hashCode => Object.hash(file.path, scale);
+  int get hashCode => Object.hash(file.path, scale, cropInfo);
 
   @override
   String toString() =>
@@ -566,11 +582,13 @@ class AssetJxlCodecImage extends ImageProvider<AssetJxlCodecImage> {
     this.scale = 1.0,
     this.overrideDurationMs = -1,
     this.bundle,
+    this.cropInfo,
   });
 
   final String asset;
   final double scale;
   final int? overrideDurationMs;
+  final CropInfo? cropInfo;
   final AssetBundle? bundle;
 
   static const double _naturalResolution = 1.0;
@@ -637,6 +655,7 @@ class AssetJxlCodecImage extends ImageProvider<AssetJxlCodecImage> {
       key: hashCode,
       jxlBytes: bytesUint8List,
       overrideDurationMs: overrideDurationMs,
+      cropInfo: cropInfo,
     );
     await codec.ready();
 
@@ -694,11 +713,12 @@ class AssetJxlCodecImage extends ImageProvider<AssetJxlCodecImage> {
     if (other.runtimeType != runtimeType) return false;
     return other is AssetJxlCodecImage &&
         other.asset == asset &&
-        other.scale == scale;
+        other.scale == scale &&
+        other.cropInfo == cropInfo;
   }
 
   @override
-  int get hashCode => Object.hash(asset, scale);
+  int get hashCode => Object.hash(asset, scale, cropInfo);
 
   @override
   String toString() =>
@@ -711,11 +731,13 @@ class NetworkJxlImage extends ImageProvider<NetworkJxlImage> {
     this.scale = 1.0,
     this.overrideDurationMs = -1,
     this.headers,
+    this.cropInfo,
   });
 
   final String url;
   final double scale;
   final int? overrideDurationMs;
+  final CropInfo? cropInfo;
   final Map<String, String>? headers;
 
   @override
@@ -788,6 +810,7 @@ class NetworkJxlImage extends ImageProvider<NetworkJxlImage> {
       key: hashCode,
       jxlBytes: bytes,
       overrideDurationMs: overrideDurationMs,
+      cropInfo: cropInfo,
     );
     await codec.ready();
 
@@ -797,11 +820,14 @@ class NetworkJxlImage extends ImageProvider<NetworkJxlImage> {
   @override
   bool operator ==(Object other) {
     if (other.runtimeType != runtimeType) return false;
-    return other is NetworkJxlImage && other.url == url && other.scale == scale;
+    return other is NetworkJxlImage &&
+        other.url == url &&
+        other.scale == scale &&
+        other.cropInfo == cropInfo;
   }
 
   @override
-  int get hashCode => Object.hash(url, scale);
+  int get hashCode => Object.hash(url, scale, cropInfo);
 
   @override
   String toString() =>
@@ -813,11 +839,13 @@ class MemoryJxlImage extends ImageProvider<MemoryJxlImage> {
     this.bytes, {
     this.scale = 1.0,
     this.overrideDurationMs = -1,
+    this.cropInfo,
   });
 
   final Uint8List bytes;
   final double scale;
   final int? overrideDurationMs;
+  final CropInfo? cropInfo;
 
   @override
   Future<MemoryJxlImage> obtainKey(ImageConfiguration configuration) {
@@ -851,6 +879,7 @@ class MemoryJxlImage extends ImageProvider<MemoryJxlImage> {
       key: hashCode,
       jxlBytes: bytesUint8List,
       overrideDurationMs: overrideDurationMs,
+      cropInfo: cropInfo,
     );
     await codec.ready();
 
@@ -864,11 +893,12 @@ class MemoryJxlImage extends ImageProvider<MemoryJxlImage> {
     }
     return other is MemoryJxlImage &&
         other.bytes == bytes &&
-        other.scale == scale;
+        other.scale == scale &&
+        other.cropInfo == cropInfo;
   }
 
   @override
-  int get hashCode => Object.hash(bytes.hashCode, scale);
+  int get hashCode => Object.hash(bytes.hashCode, scale, cropInfo);
 
   @override
   String toString() =>
@@ -883,6 +913,7 @@ class JxlImageStreamCompleter extends ImageStreamCompleter {
     String? debugLabel,
     Stream<ImageChunkEvent>? chunkEvents,
     InformationCollector? informationCollector,
+    this.cropInfo,
   })  : _informationCollector = informationCollector,
         _scale = scale,
         _key = key {
@@ -924,6 +955,7 @@ class JxlImageStreamCompleter extends ImageStreamCompleter {
   int _duration = 0;
   Timer? _timer;
   final ImageProvider _key;
+  CropInfo? cropInfo;
 
   bool _frameCallbackScheduled = false;
 
@@ -1088,6 +1120,7 @@ class JxlFrameInfo {
 
 class MultiFrameJxlCodec implements JxlCodec {
   final String _key;
+  final CropInfo? _cropInfo;
   late Completer<void> _ready;
 
   int _frameCount = 1;
@@ -1102,7 +1135,9 @@ class MultiFrameJxlCodec implements JxlCodec {
     required int key,
     required Uint8List jxlBytes,
     int? overrideDurationMs = -1,
-  }) : _key = key.toString() {
+    CropInfo? cropInfo,
+  })  : _key = key.toString(),
+        _cropInfo = cropInfo {
     _ready = Completer();
     try {
       api.initDecoder(key: _key, jxlBytes: jxlBytes).then((info) {
@@ -1146,8 +1181,10 @@ class MultiFrameJxlCodec implements JxlCodec {
 
   String? _getNextFrame(void Function(ui.Image?, int) callback) {
     try {
-      api.getNextFrame(key: _key).then((frame) {
+      api.getNextFrame(key: _key, cropInfo: _cropInfo).then((frame) {
         final (data, width, height) = (frame.data, frame.width, frame.height);
+
+        print([width, height]);
 
         var targetRgbaLength = width * height * 4;
 

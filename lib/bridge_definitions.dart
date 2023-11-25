@@ -30,13 +30,28 @@ abstract class Native {
 
   FlutterRustBridgeTaskConstMeta get kDisposeDecoderConstMeta;
 
-  Future<Frame> getNextFrame({required String key, dynamic hint});
+  Future<Frame> getNextFrame(
+      {required String key, CropInfo? cropInfo, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kGetNextFrameConstMeta;
 
   Future<bool> isJxl({required Uint8List jxlBytes, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kIsJxlConstMeta;
+}
+
+class CropInfo {
+  final int width;
+  final int height;
+  final int left;
+  final int top;
+
+  const CropInfo({
+    required this.width,
+    required this.height,
+    required this.left,
+    required this.top,
+  });
 }
 
 class Frame {

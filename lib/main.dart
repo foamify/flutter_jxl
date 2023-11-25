@@ -121,18 +121,23 @@ class _MyHomePageState extends State<MyHomePage> {
               // JxlImage.asset(
               //   'assets/testanim2.jxl',
               //   key: Key('testanim2'),
+              //   cropInfo:
+              //       const CropInfo(width: 100, height: 300, left: 10, top: 0),
               // ),
+              JxlImage.network(
+                'https://raw.githubusercontent.com/libjxl/conformance/master/testcases/animation_icos4d/input.jxl',
+              ),
               JxlImage.asset(
                 'assets/testalpha.jxl',
-                key: Key('testalpha'),
               ),
               JxlImage.asset(
                 'assets/jxlImage.jxl',
-                key: Key('jxlImage'),
+                key: const Key('jxlImage'),
               ),
               JxlImage.asset(
                 'assets/testhdr.jxl',
-                key: Key('testhdr'),
+                cropInfo:
+                    const CropInfo(width: 100, height: 100, left: 10, top: 0),
               ),
               const Text("You're running on"),
               // To render the results of a Future, a FutureBuilder is used which

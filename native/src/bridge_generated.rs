@@ -86,7 +86,11 @@ fn wire_dispose_decoder_impl(port_: MessagePort, key: impl Wire2Api<String> + Un
         },
     )
 }
-fn wire_get_next_frame_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
+fn wire_get_next_frame_impl(
+    port_: MessagePort,
+    key: impl Wire2Api<String> + UnwindSafe,
+    crop_info: impl Wire2Api<Option<CropInfo>> + UnwindSafe,
+) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, Frame, _>(
         WrapInfo {
             debug_name: "get_next_frame",
@@ -95,7 +99,8 @@ fn wire_get_next_frame_impl(port_: MessagePort, key: impl Wire2Api<String> + Unw
         },
         move || {
             let api_key = key.wire2api();
-            move |task_callback| Result::<_, ()>::Ok(get_next_frame(api_key))
+            let api_crop_info = crop_info.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(get_next_frame(api_key, api_crop_info))
         },
     )
 }
@@ -135,6 +140,11 @@ where
     }
 }
 
+impl Wire2Api<u32> for u32 {
+    fn wire2api(self) -> u32 {
+        self
+    }
+}
 impl Wire2Api<u8> for u8 {
     fn wire2api(self) -> u8 {
         self

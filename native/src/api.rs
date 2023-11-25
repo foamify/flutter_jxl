@@ -12,8 +12,8 @@ use std::{
     thread,
 };
 
-use flutter_rust_bridge::ZeroCopyBuffer;
-use jxl_oxide::JxlImage;
+use flutter_rust_bridge::{frb, ZeroCopyBuffer};
+pub use jxl_oxide::{CropInfo, JxlImage};
 
 lazy_static::lazy_static! {
     static ref DECODERS: RwLock<HashMap<String, JxlDecoder>> = {
@@ -87,8 +87,8 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
     }
 
     let (decoder_request_tx, decoder_request_rx): (
-        Sender<DecoderCommand>,
-        Receiver<DecoderCommand>,
+        Sender<DecoderRequest>,
+        Receiver<DecoderRequest>,
     ) = mpsc::channel();
     let (decoder_response_tx, decoder_response_rx): (
         Sender<CodecResponse>,
@@ -143,8 +143,8 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
 
         loop {
             let request = decoder_request_rx.recv().unwrap();
-            let response = match request {
-                DecoderCommand::GetNextFrame => _get_next_frame(&mut decoder),
+            let response = match request.command {
+                DecoderCommand::GetNextFrame => _get_next_frame(&mut decoder, request.crop_info),
                 DecoderCommand::Reset => _reset_decoder(),
                 DecoderCommand::Dispose => _dispose_decoder(),
             };
@@ -153,7 +153,7 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
                 Err(e) => panic!("Decoder connection lost. {}", e),
             };
 
-            match request {
+            match request.command {
                 DecoderCommand::Dispose => break,
                 _ => {}
             };
@@ -186,7 +186,10 @@ pub fn reset_decoder(key: String) -> bool {
     }
 
     let decoder = &map[&key];
-    match decoder.request_tx.send(DecoderCommand::Reset) {
+    match decoder.request_tx.send(DecoderRequest {
+        crop_info: None,
+        command: DecoderCommand::Reset,
+    }) {
         Ok(result) => result,
         Err(e) => panic!("Decoder connection lost. {}", e),
     };
@@ -201,7 +204,10 @@ pub fn dispose_decoder(key: String) -> bool {
     }
 
     let decoder = &map[&key];
-    match decoder.request_tx.send(DecoderCommand::Dispose) {
+    match decoder.request_tx.send(DecoderRequest {
+        crop_info: None,
+        command: DecoderCommand::Dispose,
+    }) {
         Ok(result) => result,
         Err(e) => panic!("Decoder connection lost. {}", e),
     };
@@ -210,14 +216,18 @@ pub fn dispose_decoder(key: String) -> bool {
     return true;
 }
 
-pub fn get_next_frame(key: String) -> Frame {
+pub fn get_next_frame(key: String, crop_info: Option<CropInfo>) -> Frame {
     let map = DECODERS.read().unwrap();
     if !map.contains_key(&key) {
         panic!("Decoder not found. {}", key);
     }
 
     let decoder = &map[&key];
-    match decoder.request_tx.send(DecoderCommand::GetNextFrame) {
+
+    match decoder.request_tx.send(DecoderRequest {
+        command: DecoderCommand::GetNextFrame,
+        crop_info,
+    }) {
         Ok(result) => result,
         Err(e) => panic!("Decoder connection lost. {}", e),
     };
@@ -247,23 +257,27 @@ fn _reset_decoder() -> CodecResponse {
     };
 }
 
-fn _get_next_frame(decoder: &mut Decoder) -> CodecResponse {
+fn _get_next_frame(decoder: &mut Decoder, crop: Option<CropInfo>) -> CodecResponse {
     let image = &decoder.image;
 
     let next = (decoder.index + 1) % decoder.count;
 
     decoder.index = next;
 
-    let render = image.render_frame(next).expect("Failed to render frame");
+    let render = image
+        .render_frame_cropped(next, crop)
+        .expect("Failed to render frame");
 
-    let _data = render.image_all_channels().buf().to_vec();
+    let render_image = render.image_all_channels();
+
+    let _data = render_image.buf().to_vec();
 
     return CodecResponse {
         frame: Frame {
             data: ZeroCopyBuffer(_data),
             duration: render.duration() as f64,
-            width: image.width(),
-            height: image.height(),
+            width: render_image.width() as u32,
+            height: render_image.height() as u32,
         },
     };
 }
@@ -300,7 +314,7 @@ pub struct Decoder {
 }
 
 pub struct JxlDecoder {
-    request_tx: Sender<DecoderCommand>,
+    request_tx: Sender<DecoderRequest>,
     response_rx: Receiver<CodecResponse>,
     info: JxlInfo,
 }
@@ -316,4 +330,17 @@ enum DecoderCommand {
 
 struct CodecResponse {
     pub frame: Frame,
+}
+
+#[frb(mirror(CropInfo))]
+pub struct _CropInfo {
+    pub width: u32,
+    pub height: u32,
+    pub left: u32,
+    pub top: u32,
+}
+
+struct DecoderRequest {
+    crop_info: Option<CropInfo>,
+    command: DecoderCommand,
 }

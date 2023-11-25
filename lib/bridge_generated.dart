@@ -116,14 +116,17 @@ class NativeImpl implements Native {
         argNames: ["key"],
       );
 
-  Future<Frame> getNextFrame({required String key, dynamic hint}) {
+  Future<Frame> getNextFrame(
+      {required String key, CropInfo? cropInfo, dynamic hint}) {
     var arg0 = _platform.api2wire_String(key);
+    var arg1 = _platform.api2wire_opt_box_autoadd_crop_info(cropInfo);
     return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_get_next_frame(port_, arg0),
+      callFfi: (port_) =>
+          _platform.inner.wire_get_next_frame(port_, arg0, arg1),
       parseSuccessData: _wire2api_frame,
       parseErrorData: null,
       constMeta: kGetNextFrameConstMeta,
-      argValues: [key],
+      argValues: [key, cropInfo],
       hint: hint,
     ));
   }
@@ -131,7 +134,7 @@ class NativeImpl implements Native {
   FlutterRustBridgeTaskConstMeta get kGetNextFrameConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
         debugName: "get_next_frame",
-        argNames: ["key"],
+        argNames: ["key", "cropInfo"],
       );
 
   Future<bool> isJxl({required Uint8List jxlBytes, dynamic hint}) {
@@ -221,6 +224,11 @@ class NativeImpl implements Native {
 // Section: api2wire
 
 @protected
+int api2wire_u32(int raw) {
+  return raw;
+}
+
+@protected
 int api2wire_u8(int raw) {
   return raw;
 }
@@ -238,6 +246,18 @@ class NativePlatform extends FlutterRustBridgeBase<NativeWire> {
   }
 
   @protected
+  ffi.Pointer<wire_CropInfo> api2wire_box_autoadd_crop_info(CropInfo raw) {
+    final ptr = inner.new_box_autoadd_crop_info_0();
+    _api_fill_to_wire_crop_info(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_CropInfo> api2wire_opt_box_autoadd_crop_info(CropInfo? raw) {
+    return raw == null ? ffi.nullptr : api2wire_box_autoadd_crop_info(raw);
+  }
+
+  @protected
   ffi.Pointer<wire_uint_8_list> api2wire_uint_8_list(Uint8List raw) {
     final ans = inner.new_uint_8_list_0(raw.length);
     ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
@@ -246,6 +266,18 @@ class NativePlatform extends FlutterRustBridgeBase<NativeWire> {
 // Section: finalizer
 
 // Section: api_fill_to_wire
+
+  void _api_fill_to_wire_box_autoadd_crop_info(
+      CropInfo apiObj, ffi.Pointer<wire_CropInfo> wireObj) {
+    _api_fill_to_wire_crop_info(apiObj, wireObj.ref);
+  }
+
+  void _api_fill_to_wire_crop_info(CropInfo apiObj, wire_CropInfo wireObj) {
+    wireObj.width = api2wire_u32(apiObj.width);
+    wireObj.height = api2wire_u32(apiObj.height);
+    wireObj.left = api2wire_u32(apiObj.left);
+    wireObj.top = api2wire_u32(apiObj.top);
+  }
 }
 
 // ignore_for_file: camel_case_types, non_constant_identifier_names, avoid_positional_boolean_parameters, annotate_overrides, constant_identifier_names
@@ -429,19 +461,22 @@ class NativeWire implements FlutterRustBridgeWireBase {
   void wire_get_next_frame(
     int port_,
     ffi.Pointer<wire_uint_8_list> key,
+    ffi.Pointer<wire_CropInfo> crop_info,
   ) {
     return _wire_get_next_frame(
       port_,
       key,
+      crop_info,
     );
   }
 
   late final _wire_get_next_framePtr = _lookup<
       ffi.NativeFunction<
-          ffi.Void Function(ffi.Int64,
-              ffi.Pointer<wire_uint_8_list>)>>('wire_get_next_frame');
-  late final _wire_get_next_frame = _wire_get_next_framePtr
-      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+          ffi.Void Function(ffi.Int64, ffi.Pointer<wire_uint_8_list>,
+              ffi.Pointer<wire_CropInfo>)>>('wire_get_next_frame');
+  late final _wire_get_next_frame = _wire_get_next_framePtr.asFunction<
+      void Function(
+          int, ffi.Pointer<wire_uint_8_list>, ffi.Pointer<wire_CropInfo>)>();
 
   void wire_is_jxl(
     int port_,
@@ -459,6 +494,16 @@ class NativeWire implements FlutterRustBridgeWireBase {
               ffi.Int64, ffi.Pointer<wire_uint_8_list>)>>('wire_is_jxl');
   late final _wire_is_jxl = _wire_is_jxlPtr
       .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+
+  ffi.Pointer<wire_CropInfo> new_box_autoadd_crop_info_0() {
+    return _new_box_autoadd_crop_info_0();
+  }
+
+  late final _new_box_autoadd_crop_info_0Ptr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<wire_CropInfo> Function()>>(
+          'new_box_autoadd_crop_info_0');
+  late final _new_box_autoadd_crop_info_0 = _new_box_autoadd_crop_info_0Ptr
+      .asFunction<ffi.Pointer<wire_CropInfo> Function()>();
 
   ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(
     int len,
@@ -497,6 +542,20 @@ final class wire_uint_8_list extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
+}
+
+final class wire_CropInfo extends ffi.Struct {
+  @ffi.Uint32()
+  external int width;
+
+  @ffi.Uint32()
+  external int height;
+
+  @ffi.Uint32()
+  external int left;
+
+  @ffi.Uint32()
+  external int top;
 }
 
 typedef DartPostCObjectFnType = ffi.Pointer<
