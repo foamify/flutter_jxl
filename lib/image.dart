@@ -44,7 +44,7 @@ class JxlImage extends StatefulWidget {
   State<JxlImage> createState() => JxlImageState();
 
   const JxlImage({
-    Key? key,
+    super.key,
     required this.image,
     double scale = 1.0,
     this.width,
@@ -67,11 +67,11 @@ class JxlImage extends StatefulWidget {
     this.gaplessPlayback = false,
     this.frameBuilder,
     this.loadingBuilder,
-  }) : super(key: key);
+  });
 
   JxlImage.file(
     File file, {
-    Key? key,
+    super.key,
     double scale = 1.0,
     this.width,
     this.height,
@@ -98,12 +98,11 @@ class JxlImage extends StatefulWidget {
           scale: scale,
           overrideDurationMs: overrideDurationMs,
         ),
-        loadingBuilder = null,
-        super(key: key);
+        loadingBuilder = null;
 
   JxlImage.asset(
     String name, {
-    Key? key,
+    super.key,
     double scale = 1.0,
     this.width,
     this.height,
@@ -132,12 +131,11 @@ class JxlImage extends StatefulWidget {
           overrideDurationMs: overrideDurationMs,
           bundle: bundle,
         ),
-        loadingBuilder = null,
-        super(key: key);
+        loadingBuilder = null;
 
   JxlImage.network(
     String url, {
-    Key? key,
+    super.key,
     double scale = 1.0,
     this.width,
     this.height,
@@ -161,17 +159,16 @@ class JxlImage extends StatefulWidget {
     this.frameBuilder,
     this.loadingBuilder,
     Map<String, String>? headers,
-  })  : image = NetworkJxlImage(
+  }) : image = NetworkJxlImage(
           url,
           scale: scale,
           overrideDurationMs: overrideDurationMs,
           headers: headers,
-        ),
-        super(key: key);
+        );
 
   JxlImage.memory(
     Uint8List bytes, {
-    Key? key,
+    super.key,
     double scale = 1.0,
     this.width,
     this.height,
@@ -198,8 +195,7 @@ class JxlImage extends StatefulWidget {
           scale: scale,
           overrideDurationMs: overrideDurationMs,
         ),
-        loadingBuilder = null,
-        super(key: key);
+        loadingBuilder = null;
 }
 
 class JxlImageState extends State<JxlImage> with WidgetsBindingObserver {

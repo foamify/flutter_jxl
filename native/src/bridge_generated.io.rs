@@ -31,23 +31,13 @@ pub extern "C" fn wire_dispose_decoder(port_: i64, key: *mut wire_uint_8_list) {
 }
 
 #[no_mangle]
-pub extern "C" fn wire_is_jxl(port_: i64, jxl_bytes: *mut wire_uint_8_list) {
-    wire_is_jxl_impl(port_, jxl_bytes)
-}
-
-#[no_mangle]
-pub extern "C" fn wire_get_frame_count(port_: i64, key: *mut wire_uint_8_list) {
-    wire_get_frame_count_impl(port_, key)
-}
-
-#[no_mangle]
-pub extern "C" fn wire_get_channel_count(port_: i64, key: *mut wire_uint_8_list) {
-    wire_get_channel_count_impl(port_, key)
-}
-
-#[no_mangle]
 pub extern "C" fn wire_get_next_frame(port_: i64, key: *mut wire_uint_8_list) {
     wire_get_next_frame_impl(port_, key)
+}
+
+#[no_mangle]
+pub extern "C" fn wire_is_jxl(port_: i64, jxl_bytes: *mut wire_uint_8_list) {
+    wire_is_jxl_impl(port_, jxl_bytes)
 }
 
 // Section: allocate functions

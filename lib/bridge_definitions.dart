@@ -30,21 +30,13 @@ abstract class Native {
 
   FlutterRustBridgeTaskConstMeta get kDisposeDecoderConstMeta;
 
-  Future<bool> isJxl({required Uint8List jxlBytes, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kIsJxlConstMeta;
-
-  Future<int> getFrameCount({required String key, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kGetFrameCountConstMeta;
-
-  Future<int> getChannelCount({required String key, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kGetChannelCountConstMeta;
-
   Future<Frame> getNextFrame({required String key, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kGetNextFrameConstMeta;
+
+  Future<bool> isJxl({required Uint8List jxlBytes, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kIsJxlConstMeta;
 }
 
 class Frame {

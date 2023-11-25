@@ -116,60 +116,6 @@ class NativeImpl implements Native {
         argNames: ["key"],
       );
 
-  Future<bool> isJxl({required Uint8List jxlBytes, dynamic hint}) {
-    var arg0 = _platform.api2wire_uint_8_list(jxlBytes);
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_is_jxl(port_, arg0),
-      parseSuccessData: _wire2api_bool,
-      parseErrorData: null,
-      constMeta: kIsJxlConstMeta,
-      argValues: [jxlBytes],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kIsJxlConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "is_jxl",
-        argNames: ["jxlBytes"],
-      );
-
-  Future<int> getFrameCount({required String key, dynamic hint}) {
-    var arg0 = _platform.api2wire_String(key);
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_get_frame_count(port_, arg0),
-      parseSuccessData: _wire2api_usize,
-      parseErrorData: null,
-      constMeta: kGetFrameCountConstMeta,
-      argValues: [key],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kGetFrameCountConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "get_frame_count",
-        argNames: ["key"],
-      );
-
-  Future<int> getChannelCount({required String key, dynamic hint}) {
-    var arg0 = _platform.api2wire_String(key);
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_get_channel_count(port_, arg0),
-      parseSuccessData: _wire2api_usize,
-      parseErrorData: null,
-      constMeta: kGetChannelCountConstMeta,
-      argValues: [key],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kGetChannelCountConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "get_channel_count",
-        argNames: ["key"],
-      );
-
   Future<Frame> getNextFrame({required String key, dynamic hint}) {
     var arg0 = _platform.api2wire_String(key);
     return _platform.executeNormal(FlutterRustBridgeTask(
@@ -186,6 +132,24 @@ class NativeImpl implements Native {
       const FlutterRustBridgeTaskConstMeta(
         debugName: "get_next_frame",
         argNames: ["key"],
+      );
+
+  Future<bool> isJxl({required Uint8List jxlBytes, dynamic hint}) {
+    var arg0 = _platform.api2wire_uint_8_list(jxlBytes);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_is_jxl(port_, arg0),
+      parseSuccessData: _wire2api_bool,
+      parseErrorData: null,
+      constMeta: kIsJxlConstMeta,
+      argValues: [jxlBytes],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kIsJxlConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "is_jxl",
+        argNames: ["jxlBytes"],
       );
 
   void dispose() {
@@ -462,57 +426,6 @@ class NativeWire implements FlutterRustBridgeWireBase {
   late final _wire_dispose_decoder = _wire_dispose_decoderPtr
       .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
 
-  void wire_is_jxl(
-    int port_,
-    ffi.Pointer<wire_uint_8_list> jxl_bytes,
-  ) {
-    return _wire_is_jxl(
-      port_,
-      jxl_bytes,
-    );
-  }
-
-  late final _wire_is_jxlPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.Int64, ffi.Pointer<wire_uint_8_list>)>>('wire_is_jxl');
-  late final _wire_is_jxl = _wire_is_jxlPtr
-      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
-
-  void wire_get_frame_count(
-    int port_,
-    ffi.Pointer<wire_uint_8_list> key,
-  ) {
-    return _wire_get_frame_count(
-      port_,
-      key,
-    );
-  }
-
-  late final _wire_get_frame_countPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(ffi.Int64,
-              ffi.Pointer<wire_uint_8_list>)>>('wire_get_frame_count');
-  late final _wire_get_frame_count = _wire_get_frame_countPtr
-      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
-
-  void wire_get_channel_count(
-    int port_,
-    ffi.Pointer<wire_uint_8_list> key,
-  ) {
-    return _wire_get_channel_count(
-      port_,
-      key,
-    );
-  }
-
-  late final _wire_get_channel_countPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(ffi.Int64,
-              ffi.Pointer<wire_uint_8_list>)>>('wire_get_channel_count');
-  late final _wire_get_channel_count = _wire_get_channel_countPtr
-      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
-
   void wire_get_next_frame(
     int port_,
     ffi.Pointer<wire_uint_8_list> key,
@@ -528,6 +441,23 @@ class NativeWire implements FlutterRustBridgeWireBase {
           ffi.Void Function(ffi.Int64,
               ffi.Pointer<wire_uint_8_list>)>>('wire_get_next_frame');
   late final _wire_get_next_frame = _wire_get_next_framePtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_is_jxl(
+    int port_,
+    ffi.Pointer<wire_uint_8_list> jxl_bytes,
+  ) {
+    return _wire_is_jxl(
+      port_,
+      jxl_bytes,
+    );
+  }
+
+  late final _wire_is_jxlPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(
+              ffi.Int64, ffi.Pointer<wire_uint_8_list>)>>('wire_is_jxl');
+  late final _wire_is_jxl = _wire_is_jxlPtr
       .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
 
   ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(

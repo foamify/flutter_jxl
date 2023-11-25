@@ -2,7 +2,15 @@
 // When adding new code to your project, note that only items used
 // here will be transformed to their Dart equivalents.
 
-use std::{collections::HashMap, io::Cursor, sync::RwLock};
+use std::{
+    collections::HashMap,
+    io::Cursor,
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        RwLock,
+    },
+    thread,
+};
 
 use flutter_rust_bridge::ZeroCopyBuffer;
 use jxl_oxide::JxlImage;
@@ -74,10 +82,30 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
         let map = DECODERS.read().unwrap();
         if map.contains_key(&key) {
             let decoder = &map[&key];
+            return decoder.info;
+        }
+    }
 
-            let image = &decoder.image;
+    let (decoder_request_tx, decoder_request_rx): (
+        Sender<DecoderCommand>,
+        Receiver<DecoderCommand>,
+    ) = mpsc::channel();
+    let (decoder_response_tx, decoder_response_rx): (
+        Sender<CodecResponse>,
+        Receiver<CodecResponse>,
+    ) = mpsc::channel();
+    let (decoder_info_tx, decoder_info_rx): (Sender<JxlInfo>, Receiver<JxlInfo>) = mpsc::channel();
+
+    thread::spawn(move || {
+        let reader = Cursor::new(jxl_bytes);
+        let image = JxlImage::from_reader(reader).expect("Failed to decode image");
+        let width = image.width();
+        let height = image.height();
+        let image_count = image.num_loaded_frames();
+        let is_animation = image.image_header().metadata.animation.is_some();
+        let mut duration = 0.0;
+        if is_animation {
             let ticks = image.frame_header(0).unwrap().duration;
-
             let tps_numerator = image
                 .image_header()
                 .metadata
@@ -85,7 +113,6 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
                 .as_ref()
                 .unwrap()
                 .tps_numerator;
-
             let tps_denominator = image
                 .image_header()
                 .metadata
@@ -93,68 +120,63 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
                 .as_ref()
                 .unwrap()
                 .tps_denominator;
+            duration = ticks as f64 / (tps_numerator as f64 / tps_denominator as f64);
+        }
 
-            let duration = ticks as f64 / (tps_numerator as f64 / tps_denominator as f64);
+        let mut decoder = Decoder {
+            image,
+            index: 0,
+            count: image_count,
+        };
 
-            return JxlInfo {
-                width: decoder.image.width(),
-                height: decoder.image.height(),
-                image_count: decoder.image.num_loaded_frames(),
-                duration,
+        // ---
+
+        match decoder_info_tx.send(JxlInfo {
+            width,
+            height,
+            duration,
+            image_count,
+        }) {
+            Ok(result) => result,
+            Err(e) => panic!("Decoder connection lost. {}", e),
+        };
+
+        loop {
+            let request = decoder_request_rx.recv().unwrap();
+            let response = match request {
+                DecoderCommand::GetNextFrame => _get_next_frame(&mut decoder),
+                DecoderCommand::Reset => _reset_decoder(),
+                DecoderCommand::Dispose => _dispose_decoder(),
+            };
+            match decoder_response_tx.send(response) {
+                Ok(result) => result,
+                Err(e) => panic!("Decoder connection lost. {}", e),
+            };
+
+            match request {
+                DecoderCommand::Dispose => break,
+                _ => {}
             };
         }
-    }
+    });
 
-    let reader = Cursor::new(jxl_bytes);
-    let image = JxlImage::from_reader(reader).expect("Failed to read image");
-
-    let width = image.width();
-    let height = image.height();
-    let image_count = image.num_loaded_frames();
-
-    let is_animation = image.image_header().metadata.animation.is_some();
-
-    let mut duration = 0.0;
-
-    if is_animation {
-        let ticks = image.frame_header(0).unwrap().duration;
-
-        let tps_numerator = image
-            .image_header()
-            .metadata
-            .animation
-            .as_ref()
-            .unwrap()
-            .tps_numerator;
-
-        let tps_denominator = image
-            .image_header()
-            .metadata
-            .animation
-            .as_ref()
-            .unwrap()
-            .tps_denominator;
-
-        duration = ticks as f64 / (tps_numerator as f64 / tps_denominator as f64);
-    }
-
-    let decoder = JxlDecoder {
-        image,
-        index: 0,
-        count: image_count,
+    let jxl_info = match decoder_info_rx.recv() {
+        Ok(result) => result,
+        Err(e) => panic!("Couldn't read jxl info. Code: {}", e),
     };
 
     {
         let mut map = DECODERS.write().unwrap();
-        map.insert(key, decoder);
+        map.insert(
+            key,
+            JxlDecoder {
+                request_tx: decoder_request_tx,
+                response_rx: decoder_response_rx,
+                info: jxl_info,
+            },
+        );
     }
-
-    return JxlInfo {
-        width,
-        height,
-        image_count,
-        duration,
-    };
+    return jxl_info;
 }
 
 pub fn reset_decoder(key: String) -> bool {
@@ -163,12 +185,12 @@ pub fn reset_decoder(key: String) -> bool {
         return false;
     }
 
-    // let decoder = &map[&key];
-    // match decoder.request_tx.send(DecoderCommand::Reset) {
-    //     Ok(result) => result,
-    //     Err(e) => panic!("Decoder connection lost. {}", e),
-    // };
-    // decoder.response_rx.recv().unwrap();
+    let decoder = &map[&key];
+    match decoder.request_tx.send(DecoderCommand::Reset) {
+        Ok(result) => result,
+        Err(e) => panic!("Decoder connection lost. {}", e),
+    };
+    decoder.response_rx.recv().unwrap();
     return true;
 }
 
@@ -178,14 +200,72 @@ pub fn dispose_decoder(key: String) -> bool {
         return false;
     }
 
-    // let decoder = &map[&key];
-    // match decoder.request_tx.send(DecoderCommand::Dispose) {
-    //     Ok(result) => result,
-    //     Err(e) => panic!("Decoder connection lost. {}", e),
-    // };
-    // decoder.response_rx.recv().unwrap();
+    let decoder = &map[&key];
+    match decoder.request_tx.send(DecoderCommand::Dispose) {
+        Ok(result) => result,
+        Err(e) => panic!("Decoder connection lost. {}", e),
+    };
+    decoder.response_rx.recv().unwrap();
     map.remove(&key);
     return true;
+}
+
+pub fn get_next_frame(key: String) -> Frame {
+    let map = DECODERS.read().unwrap();
+    if !map.contains_key(&key) {
+        panic!("Decoder not found. {}", key);
+    }
+
+    let decoder = &map[&key];
+    match decoder.request_tx.send(DecoderCommand::GetNextFrame) {
+        Ok(result) => result,
+        Err(e) => panic!("Decoder connection lost. {}", e),
+    };
+    let result = decoder.response_rx.recv().unwrap();
+    return result.frame;
+}
+
+fn _dispose_decoder() -> CodecResponse {
+    return CodecResponse {
+        frame: Frame {
+            data: ZeroCopyBuffer(Vec::new()),
+            duration: 0.0,
+            width: 0,
+            height: 0,
+        },
+    };
+}
+
+fn _reset_decoder() -> CodecResponse {
+    return CodecResponse {
+        frame: Frame {
+            data: ZeroCopyBuffer(Vec::new()),
+            duration: 0.0,
+            width: 0,
+            height: 0,
+        },
+    };
+}
+
+fn _get_next_frame(decoder: &mut Decoder) -> CodecResponse {
+    let image = &decoder.image;
+
+    let next = (decoder.index + 1) % decoder.count;
+
+    decoder.index = next;
+
+    let render = image.render_frame(next).expect("Failed to render frame");
+
+    let _data = render.image_all_channels().buf().to_vec();
+
+    return CodecResponse {
+        frame: Frame {
+            data: ZeroCopyBuffer(_data),
+            duration: render.duration() as f64,
+            width: image.width(),
+            height: image.height(),
+        },
+    };
 }
 
 pub fn is_jxl(jxl_bytes: Vec<u8>) -> bool {
@@ -198,71 +278,11 @@ pub fn is_jxl(jxl_bytes: Vec<u8>) -> bool {
     }
 }
 
-pub fn get_frame_count(key: String) -> usize {
-    let map = DECODERS.read().unwrap();
-    // Now you can use `map` instead of calling `map.read().unwrap()`
-
-    // Example usage:
-    let decoder = map.get(&key).unwrap();
-
-    return decoder.image.num_loaded_frames();
-}
-
-pub fn get_channel_count(key: String) -> usize {
-    let map = DECODERS.read().unwrap();
-    // Now you can use `map` instead of calling `map.read().unwrap()`
-
-    // Example usage:
-    let decoder = map.get(&key).unwrap();
-
-    return decoder.image.pixel_format().channels();
-}
-
-pub fn get_next_frame(key: String) -> Frame {
-    let frame: Frame;
-
-    let next: usize;
-
-    {
-        let map = DECODERS.read().unwrap();
-
-        let decoder = map.get(&key).unwrap();
-
-        next = (decoder.index + 1) % decoder.count;
-
-        let image = &decoder.image;
-
-        let render = image.render_frame(next).expect("Failed to render frame");
-
-        let _data = render.image_all_channels().buf().to_vec();
-
-        frame = Frame {
-            data: ZeroCopyBuffer(_data),
-            duration: render.duration() as f64,
-            width: image.width(),
-            height: image.height(),
-        };
-    }
-
-    {
-        let mut map = DECODERS.write().unwrap();
-        map.get_mut(&key).unwrap().index = next;
-    }
-
-    return frame;
-}
-
 pub struct Frame {
     pub data: ZeroCopyBuffer<Vec<f32>>,
     pub duration: f64,
     pub width: u32,
     pub height: u32,
-}
-
-pub struct JxlDecoder {
-    pub image: JxlImage,
-    pub index: usize,
-    pub count: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -271,4 +291,29 @@ pub struct JxlInfo {
     pub height: u32,
     pub image_count: usize,
     pub duration: f64,
+}
+
+pub struct Decoder {
+    image: JxlImage,
+    index: usize,
+    count: usize,
+}
+
+pub struct JxlDecoder {
+    request_tx: Sender<DecoderCommand>,
+    response_rx: Receiver<CodecResponse>,
+    info: JxlInfo,
+}
+
+unsafe impl Send for JxlDecoder {}
+unsafe impl Sync for JxlDecoder {}
+
+enum DecoderCommand {
+    GetNextFrame,
+    Reset,
+    Dispose,
+}
+
+struct CodecResponse {
+    pub frame: Frame,
 }

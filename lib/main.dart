@@ -114,14 +114,14 @@ class _MyHomePageState extends State<MyHomePage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               // RawImage(image: rawImage, fit: BoxFit.fitWidth),
-              JxlImage.asset(
-                'assets/testanim.jxl',
-                key: Key('testanim'),
-              ),
-              JxlImage.asset(
-                'assets/testanim2.jxl',
-                key: Key('testanim2'),
-              ),
+              // JxlImage.asset(
+              //   'assets/testanim.jxl',
+              //   key: Key('testanim'),
+              // ),
+              // JxlImage.asset(
+              //   'assets/testanim2.jxl',
+              //   key: Key('testanim2'),
+              // ),
               JxlImage.asset(
                 'assets/testalpha.jxl',
                 key: Key('testalpha'),

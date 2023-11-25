@@ -86,45 +86,6 @@ fn wire_dispose_decoder_impl(port_: MessagePort, key: impl Wire2Api<String> + Un
         },
     )
 }
-fn wire_is_jxl_impl(port_: MessagePort, jxl_bytes: impl Wire2Api<Vec<u8>> + UnwindSafe) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, bool, _>(
-        WrapInfo {
-            debug_name: "is_jxl",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_jxl_bytes = jxl_bytes.wire2api();
-            move |task_callback| Result::<_, ()>::Ok(is_jxl(api_jxl_bytes))
-        },
-    )
-}
-fn wire_get_frame_count_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, usize, _>(
-        WrapInfo {
-            debug_name: "get_frame_count",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_key = key.wire2api();
-            move |task_callback| Result::<_, ()>::Ok(get_frame_count(api_key))
-        },
-    )
-}
-fn wire_get_channel_count_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, usize, _>(
-        WrapInfo {
-            debug_name: "get_channel_count",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_key = key.wire2api();
-            move |task_callback| Result::<_, ()>::Ok(get_channel_count(api_key))
-        },
-    )
-}
 fn wire_get_next_frame_impl(port_: MessagePort, key: impl Wire2Api<String> + UnwindSafe) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, Frame, _>(
         WrapInfo {
@@ -135,6 +96,19 @@ fn wire_get_next_frame_impl(port_: MessagePort, key: impl Wire2Api<String> + Unw
         move || {
             let api_key = key.wire2api();
             move |task_callback| Result::<_, ()>::Ok(get_next_frame(api_key))
+        },
+    )
+}
+fn wire_is_jxl_impl(port_: MessagePort, jxl_bytes: impl Wire2Api<Vec<u8>> + UnwindSafe) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, bool, _>(
+        WrapInfo {
+            debug_name: "is_jxl",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_jxl_bytes = jxl_bytes.wire2api();
+            move |task_callback| Result::<_, ()>::Ok(is_jxl(api_jxl_bytes))
         },
     )
 }
