@@ -2,16 +2,6 @@ use super::*;
 // Section: wire functions
 
 #[no_mangle]
-pub extern "C" fn wire_platform(port_: i64) {
-    wire_platform_impl(port_)
-}
-
-#[no_mangle]
-pub extern "C" fn wire_rust_release_mode(port_: i64) {
-    wire_rust_release_mode_impl(port_)
-}
-
-#[no_mangle]
 pub extern "C" fn wire_init_decoder(
     port_: i64,
     jxl_bytes: *mut wire_uint_8_list,

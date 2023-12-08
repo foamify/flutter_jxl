@@ -26,40 +26,6 @@ class NativeImpl implements Native {
   factory NativeImpl.wasm(FutureOr<WasmModule> module) =>
       NativeImpl(module as ExternalLibrary);
   NativeImpl.raw(this._platform);
-  Future<Platform> platform({dynamic hint}) {
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_platform(port_),
-      parseSuccessData: _wire2api_platform,
-      parseErrorData: null,
-      constMeta: kPlatformConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kPlatformConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "platform",
-        argNames: [],
-      );
-
-  Future<bool> rustReleaseMode({dynamic hint}) {
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_rust_release_mode(port_),
-      parseSuccessData: _wire2api_bool,
-      parseErrorData: null,
-      constMeta: kRustReleaseModeConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kRustReleaseModeConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "rust_release_mode",
-        argNames: [],
-      );
-
   Future<JxlInfo> initDecoder(
       {required Uint8List jxlBytes, required String key, dynamic hint}) {
     var arg0 = _platform.api2wire_uint_8_list(jxlBytes);
@@ -164,6 +130,10 @@ class NativeImpl implements Native {
     return raw as Float32List;
   }
 
+  Uint8List _wire2api_ZeroCopyBuffer_Uint8List(dynamic raw) {
+    return raw as Uint8List;
+  }
+
   bool _wire2api_bool(dynamic raw) {
     return raw as bool;
   }
@@ -182,38 +152,44 @@ class NativeImpl implements Native {
 
   Frame _wire2api_frame(dynamic raw) {
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return Frame(
       data: _wire2api_ZeroCopyBuffer_Float32List(arr[0]),
       duration: _wire2api_f64(arr[1]),
       width: _wire2api_u32(arr[2]),
       height: _wire2api_u32(arr[3]),
+      icc: _wire2api_opt_ZeroCopyBuffer_Uint8List(arr[4]),
     );
-  }
-
-  int _wire2api_i32(dynamic raw) {
-    return raw as int;
   }
 
   JxlInfo _wire2api_jxl_info(dynamic raw) {
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return JxlInfo(
       width: _wire2api_u32(arr[0]),
       height: _wire2api_u32(arr[1]),
       imageCount: _wire2api_usize(arr[2]),
       duration: _wire2api_f64(arr[3]),
+      isHdr: _wire2api_bool(arr[4]),
     );
   }
 
-  Platform _wire2api_platform(dynamic raw) {
-    return Platform.values[raw as int];
+  Uint8List? _wire2api_opt_ZeroCopyBuffer_Uint8List(dynamic raw) {
+    return raw == null ? null : _wire2api_ZeroCopyBuffer_Uint8List(raw);
   }
 
   int _wire2api_u32(dynamic raw) {
     return raw as int;
+  }
+
+  int _wire2api_u8(dynamic raw) {
+    return raw as int;
+  }
+
+  Uint8List _wire2api_uint_8_list(dynamic raw) {
+    return raw as Uint8List;
   }
 
   int _wire2api_usize(dynamic raw) {
@@ -375,34 +351,6 @@ class NativeWire implements FlutterRustBridgeWireBase {
           'init_frb_dart_api_dl');
   late final _init_frb_dart_api_dl = _init_frb_dart_api_dlPtr
       .asFunction<int Function(ffi.Pointer<ffi.Void>)>();
-
-  void wire_platform(
-    int port_,
-  ) {
-    return _wire_platform(
-      port_,
-    );
-  }
-
-  late final _wire_platformPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-          'wire_platform');
-  late final _wire_platform =
-      _wire_platformPtr.asFunction<void Function(int)>();
-
-  void wire_rust_release_mode(
-    int port_,
-  ) {
-    return _wire_rust_release_mode(
-      port_,
-    );
-  }
-
-  late final _wire_rust_release_modePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-          'wire_rust_release_mode');
-  late final _wire_rust_release_mode =
-      _wire_rust_release_modePtr.asFunction<void Function(int)>();
 
   void wire_init_decoder(
     int port_,

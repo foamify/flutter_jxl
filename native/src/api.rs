@@ -14,67 +14,12 @@ use std::{
 
 use flutter_rust_bridge::{frb, ZeroCopyBuffer};
 pub use jxl_oxide::{CropInfo, JxlImage};
+use maplibre::style::Bt2020;
 
 lazy_static::lazy_static! {
     static ref DECODERS: RwLock<HashMap<String, JxlDecoder>> = {
         RwLock::new(HashMap::new())
     };
-}
-
-// A plain enum without any fields. This is similar to Dart- or C-style enums.
-// flutter_rust_bridge is capable of generating code for enums with fields
-// (@freezed classes in Dart and tagged unions in C).
-pub enum Platform {
-    Unknown,
-    Android,
-    Ios,
-    Windows,
-    Unix,
-    MacIntel,
-    MacApple,
-    Wasm,
-}
-
-// A function definition in Rust. Similar to Dart, the return type must always be named
-// and is never inferred.
-pub fn platform() -> Platform {
-    // This is a macro, a special expression that expands into code. In Rust, all macros
-    // end with an exclamation mark and can be invoked with all kinds of brackets (parentheses,
-    // brackets and curly braces). However, certain conventions exist, for example the
-    // vector macro is almost always invoked as vec![..].
-    //
-    // The cfg!() macro returns a boolean value based on the current compiler configuration.
-    // When attached to expressions (#[cfg(..)] form), they show or hide the expression at compile time.
-    // Here, however, they evaluate to runtime values, which may or may not be optimized out
-    // by the compiler. A variety of configurations are demonstrated here which cover most of
-    // the modern oeprating systems. Try running the Flutter application on different machines
-    // and see if it matches your expected OS.
-    //
-    // Furthermore, in Rust, the last expression in a function is the return value and does
-    // not have the trailing semicolon. This entire if-else chain forms a single expression.
-    if cfg!(windows) {
-        Platform::Windows
-    } else if cfg!(target_os = "android") {
-        Platform::Android
-    } else if cfg!(target_os = "ios") {
-        Platform::Ios
-    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-        Platform::MacApple
-    } else if cfg!(target_os = "macos") {
-        Platform::MacIntel
-    } else if cfg!(target_family = "wasm") {
-        Platform::Wasm
-    } else if cfg!(unix) {
-        Platform::Unix
-    } else {
-        Platform::Unknown
-    }
-}
-
-// The convention for Rust identifiers is the snake_case,
-// and they are automatically converted to camelCase on the Dart side.
-pub fn rust_release_mode() -> bool {
-    cfg!(not(debug_assertions))
 }
 
 pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
@@ -103,6 +48,7 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
         let height = image.height();
         let image_count = image.num_loaded_frames();
         let is_animation = image.image_header().metadata.animation.is_some();
+        let is_hdr = image.image_header().metadata.bit_depth.bits_per_sample() > 8;
         let mut duration = 0.0;
         if is_animation {
             let ticks = image.frame_header(0).unwrap().duration;
@@ -136,6 +82,7 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
             height,
             duration,
             image_count,
+            is_hdr,
         }) {
             Ok(result) => result,
             Err(e) => panic!("Decoder connection lost. {}", e),
@@ -153,10 +100,9 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
                 Err(e) => panic!("Decoder connection lost. {}", e),
             };
 
-            match request.command {
-                DecoderCommand::Dispose => break,
-                _ => {}
-            };
+            if let DecoderCommand::Dispose = request.command {
+                break;
+            }
         }
     });
 
@@ -176,7 +122,7 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
             },
         );
     }
-    return jxl_info;
+    jxl_info
 }
 
 pub fn reset_decoder(key: String) -> bool {
@@ -194,7 +140,7 @@ pub fn reset_decoder(key: String) -> bool {
         Err(e) => panic!("Decoder connection lost. {}", e),
     };
     decoder.response_rx.recv().unwrap();
-    return true;
+    true
 }
 
 pub fn dispose_decoder(key: String) -> bool {
@@ -213,7 +159,7 @@ pub fn dispose_decoder(key: String) -> bool {
     };
     decoder.response_rx.recv().unwrap();
     map.remove(&key);
-    return true;
+    true
 }
 
 pub fn get_next_frame(key: String, crop_info: Option<CropInfo>) -> Frame {
@@ -232,29 +178,31 @@ pub fn get_next_frame(key: String, crop_info: Option<CropInfo>) -> Frame {
         Err(e) => panic!("Decoder connection lost. {}", e),
     };
     let result = decoder.response_rx.recv().unwrap();
-    return result.frame;
+    result.frame
 }
 
 fn _dispose_decoder() -> CodecResponse {
-    return CodecResponse {
+    CodecResponse {
         frame: Frame {
             data: ZeroCopyBuffer(Vec::new()),
             duration: 0.0,
             width: 0,
             height: 0,
+            icc: None,
         },
-    };
+    }
 }
 
 fn _reset_decoder() -> CodecResponse {
-    return CodecResponse {
+    CodecResponse {
         frame: Frame {
             data: ZeroCopyBuffer(Vec::new()),
             duration: 0.0,
             width: 0,
             height: 0,
+            icc: None,
         },
-    };
+    }
 }
 
 fn _get_next_frame(decoder: &mut Decoder, crop: Option<CropInfo>) -> CodecResponse {
@@ -272,24 +220,73 @@ fn _get_next_frame(decoder: &mut Decoder, crop: Option<CropInfo>) -> CodecRespon
 
     let _data = render_image.buf().to_vec();
 
-    return CodecResponse {
+    if image.image_header().metadata.bit_depth.bits_per_sample() > 8 {
+
+        println!("ISHDR, PROCESSING...");
+        let icc = image.rendered_icc();
+
+        return CodecResponse {
+            frame: Frame {
+                data: ZeroCopyBuffer(convert_to_bt2020_and_apply_pq_gamma(_data)),
+                duration: render.duration() as f64,
+                width: render_image.width() as u32,
+                height: render_image.height() as u32,
+                icc: Some(ZeroCopyBuffer(icc)),
+            },
+        };
+    }
+
+    CodecResponse {
         frame: Frame {
             data: ZeroCopyBuffer(_data),
             duration: render.duration() as f64,
             width: render_image.width() as u32,
             height: render_image.height() as u32,
+            icc: None,
         },
-    };
+    }
+}
+
+fn convert_to_bt2020_and_apply_pq_gamma(input: Vec<f32>) -> Vec<f32> {
+    let mut output = Vec::new();
+
+    for color in input {
+        // Convert to BT.2020
+        let bt2020 = Bt2020 {
+            r: color,
+            g: color,
+            b: color,
+        };
+
+        // Apply PQ gamma correction
+        let pq_gamma_corrected = pq_gamma_correction(bt2020.r);
+
+        output.push(pq_gamma_corrected);
+    }
+
+    output
+}
+
+fn pq_gamma_correction(input: f32) -> f32 {
+    let a = 0.0225;
+    let b = 0.0000;
+    let c = 0.98;
+    let d = 0.015;
+
+    if input <= 0.0 {
+        0.0
+    } else if input < d {
+        ((input - b) / c) * ((input - b) / c) * ((input - b) / c)
+    } else {
+        ((input - b) / c) + a
+    }
 }
 
 pub fn is_jxl(jxl_bytes: Vec<u8>) -> bool {
     let reader = Cursor::new(jxl_bytes);
     let image = JxlImage::from_reader(reader);
 
-    match image {
-        Ok(_) => return true,
-        Err(_) => return false,
-    }
+    image.is_ok()
 }
 
 pub struct Frame {
@@ -297,6 +294,7 @@ pub struct Frame {
     pub duration: f64,
     pub width: u32,
     pub height: u32,
+    pub icc: Option<ZeroCopyBuffer<Vec<u8>>>,
 }
 
 #[derive(Copy, Clone)]
@@ -305,6 +303,7 @@ pub struct JxlInfo {
     pub height: u32,
     pub image_count: usize,
     pub duration: f64,
+    pub is_hdr: bool,
 }
 
 pub struct Decoder {

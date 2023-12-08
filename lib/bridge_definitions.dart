@@ -9,14 +9,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:uuid/uuid.dart';
 
 abstract class Native {
-  Future<Platform> platform({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kPlatformConstMeta;
-
-  Future<bool> rustReleaseMode({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kRustReleaseModeConstMeta;
-
   Future<JxlInfo> initDecoder(
       {required Uint8List jxlBytes, required String key, dynamic hint});
 
@@ -59,12 +51,14 @@ class Frame {
   final double duration;
   final int width;
   final int height;
+  final Uint8List? icc;
 
   const Frame({
     required this.data,
     required this.duration,
     required this.width,
     required this.height,
+    this.icc,
   });
 }
 
@@ -73,22 +67,13 @@ class JxlInfo {
   final int height;
   final int imageCount;
   final double duration;
+  final bool isHdr;
 
   const JxlInfo({
     required this.width,
     required this.height,
     required this.imageCount,
     required this.duration,
+    required this.isHdr,
   });
-}
-
-enum Platform {
-  Unknown,
-  Android,
-  Ios,
-  Windows,
-  Unix,
-  MacIntel,
-  MacApple,
-  Wasm,
 }

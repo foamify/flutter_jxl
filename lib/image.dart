@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_rust_bridge_template/ffi.dart';
+import 'package:icc_parser/icc_parser.dart';
 import 'dart:ui' as ui;
 
-import 'package:flutter_rust_bridge_template/ffi.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// Used to support both Flutter 2.x.x and 3.x.x
 ///
@@ -573,7 +576,7 @@ class FileJxlImage extends ImageProvider<FileJxlImage> {
 
   @override
   String toString() =>
-      '${objectRuntimeType(this, 'JxlImage')}("${file.path}", scale: $scale)';
+      '${objectRuntimeType(this, 'JxlImage')}("${file.path}", scale: $scale, cropInfo: $cropInfo)';
 }
 
 class AssetJxlCodecImage extends ImageProvider<AssetJxlCodecImage> {
@@ -722,7 +725,7 @@ class AssetJxlCodecImage extends ImageProvider<AssetJxlCodecImage> {
 
   @override
   String toString() =>
-      '${objectRuntimeType(this, 'JxlCodecImage')}("$asset", scale: $scale)';
+      '${objectRuntimeType(this, 'JxlCodecImage')}("$asset", scale: $scale, cropInfo: $cropInfo)';
 }
 
 class NetworkJxlImage extends ImageProvider<NetworkJxlImage> {
@@ -831,7 +834,7 @@ class NetworkJxlImage extends ImageProvider<NetworkJxlImage> {
 
   @override
   String toString() =>
-      '${objectRuntimeType(this, 'JxlImage')}("$url", scale: $scale)';
+      '${objectRuntimeType(this, 'JxlImage')}("$url", scale: $scale, cropInfo: $cropInfo)';
 }
 
 class MemoryJxlImage extends ImageProvider<MemoryJxlImage> {
@@ -902,7 +905,7 @@ class MemoryJxlImage extends ImageProvider<MemoryJxlImage> {
 
   @override
   String toString() =>
-      '${objectRuntimeType(this, 'MemoryJxlImage')}(${describeIdentity(bytes)}, scale: $scale)';
+      '${objectRuntimeType(this, 'MemoryJxlImage')}(${describeIdentity(bytes)}, scale: $scale, cropInfo: $cropInfo)';
 }
 
 class JxlImageStreamCompleter extends ImageStreamCompleter {
@@ -1122,6 +1125,7 @@ class MultiFrameJxlCodec implements JxlCodec {
   final String _key;
   final CropInfo? _cropInfo;
   late Completer<void> _ready;
+  late final bool isHdr;
 
   int _frameCount = 1;
   @override
@@ -1143,6 +1147,7 @@ class MultiFrameJxlCodec implements JxlCodec {
       api.initDecoder(key: _key, jxlBytes: jxlBytes).then((info) {
         _frameCount = info.imageCount;
         _durationMs = overrideDurationMs ?? info.duration.round();
+        isHdr = info.isHdr;
         _ready.complete();
       });
     } catch (e) {
@@ -1182,13 +1187,45 @@ class MultiFrameJxlCodec implements JxlCodec {
   String? _getNextFrame(void Function(ui.Image?, int) callback) {
     try {
       api.getNextFrame(key: _key, cropInfo: _cropInfo).then((frame) {
-        final (data, width, height) = (frame.data, frame.width, frame.height);
+        var (data, width, height, icc) =
+            (frame.data, frame.width, frame.height, frame.icc);
 
         var targetRgbaLength = width * height * 4;
 
         final hasAlpha = data.length == targetRgbaLength;
 
+        if (isHdr) {
+          // normalizeHdrImage(data);
+          // data = reinhardExtendedLuminance(data, 1);
+          // data = toneMapHDR2(data, 1);
+          // data = tonemapPaper(data, 0, 1);
+          // applyToneMapping2446c(data);
+          // enhanceImage(
+          //   data,
+          //   1.5,
+          //   0,
+          //   2,
+          // );
+          // enhanceColor(data, 2);
+          // data = processImage(data);
+          // data = toneMapHDR(data, .7);
+          // data = acesToneMap(data);
+          // toneMapHDRToSDR(data);
+          // data = tonemapMaxRgb(data);
+          // applyToneMapping2446a(data);
+          // applyToneMappingLottes(data);
+          // applyToneMappingReinhard(data);
+          // applyInversePq(data);
+          // applyPq(data);
+          // applyInverseSrgb(data);
+          // convertToBT2020(data);
+          // data = convertSrgbToRec2020(data);
+          applyHdrToSdrTonemap(data);
+        }
+
         late final Float32List? modifiedData;
+
+        print('hasalpha: $hasAlpha');
 
         if (!hasAlpha) {
           modifiedData = Float32List(targetRgbaLength);
@@ -1225,4 +1262,389 @@ class MultiFrameJxlCodec implements JxlCodec {
   void dispose() {
     api.disposeDecoder(key: _key);
   }
+}
+
+const m1 = 0.1593017578125;
+const m2 = 78.84375;
+const c1 = 0.8359375;
+const c2 = 18.851525;
+const c3 = 18.6875;
+
+const pqC = 1;
+
+double pq(double c) {
+  double L = c / pqC;
+  double Lm = pow(L, m1).toDouble();
+  double N = (c1 + c2 * Lm) / (1.0 + c3 * Lm);
+  N = pow(N, m2).toDouble();
+  return N;
+}
+
+double inversePq(double n) {
+  final top = max(
+    pow(n, 1 / m2) - c1,
+    0,
+  );
+  final bottom = c2 - c3 * pow(n, 1 / m2);
+  final result = pow(top / bottom, 1 / m1).toDouble();
+  return result * pqC;
+}
+
+Vector3 inversePqColor(Vector3 color) {
+  return Vector3(
+    inversePq(color.x),
+    inversePq(color.y),
+    inversePq(color.z),
+  );
+}
+
+Vector3 pqColor(Vector3 color) {
+  return Vector3(
+    pq(color.x),
+    pq(color.y),
+    pq(color.z),
+  );
+}
+
+void applyInversePq(Float32List data) {
+  for (var i = 0; i < data.length; i += 3) {
+    data[i] = inversePq(data[i]);
+    data[i + 1] = inversePq(data[i + 1]);
+    data[i + 2] = inversePq(data[i + 2]);
+  }
+}
+
+// srgb
+final srgbD65ToXyzMatrix = Matrix3(
+  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  0.4124564, 0.3575761, 0.1804375,
+  0.2126729, 0.7151522, 0.0721750,
+  0.0193339, 0.1191920, 0.9503041,
+);
+
+final srgbWideGamutToXyzMatrix = Matrix3(
+  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  0.7161046, 0.1009296, 0.1471858,
+  0.2581874, 0.7249378, 0.0168748,
+  0.0000000, 0.0517813, 0.7734287,
+);
+
+final srgbD50ToXyzMatrix = Matrix3(
+  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+  0.4360747, 0.3850649, 0.1430804,
+  0.2225045, 0.7168786, 0.0606169,
+  0.0139322, 0.0971045, 0.7141733,
+);
+
+// prophoto rgb
+final bt2020RgbToXyzMatrix = Matrix3(
+  // https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BT.2407-2017-PDF-E.pdf | A5.1
+  0.637, 0.145, 0.169,
+  0.263, 0.678, 0.059,
+  0, 0.028, 1.061,
+);
+
+Matrix3 get rgbToXyzMatrix => bt2020RgbToXyzMatrix.clone();
+Matrix3 get inverseRgbToXyzMatrix => bt2020RgbToXyzMatrix.clone()..invert();
+
+Vector3 srgbD65ToXyz(Vector3 color) {
+  return (srgbD65ToXyzMatrix.clone()) * color;
+}
+
+Vector3 xyzToSrgbD65(Vector3 color) {
+  return (srgbD65ToXyzMatrix.clone()..invert()) * color;
+}
+
+Vector3 srgbWideGamutToXyz(Vector3 color) {
+  return (srgbWideGamutToXyzMatrix.clone()) * color;
+}
+
+Vector3 xyzToSrgbWideGamut(Vector3 color) {
+  return (srgbWideGamutToXyzMatrix.clone()..invert()) * color;
+}
+
+Vector3 srgbD50ToXyz(Vector3 color) {
+  return (srgbD50ToXyzMatrix.clone()) * color;
+}
+
+Vector3 xyzToSrgbD50(Vector3 color) {
+  return (srgbD50ToXyzMatrix.clone()..invert()) * color;
+}
+
+Vector3 bt2020rgbToXyz(Vector3 color) {
+  return rgbToXyzMatrix.clone() * color;
+}
+
+Vector3 xyzToBt2020Rgb(Vector3 color) {
+  return inverseRgbToXyzMatrix.clone() * color;
+}
+
+Vector3 XYZ_to_xyY(Vector3 XYZ) {
+  double X = XYZ.x;
+  double Y = XYZ.y;
+  double Z = XYZ.z;
+
+  double divisor = X + Y + Z;
+  if (divisor == 0.0) divisor = 1e-6;
+
+  double x = X / divisor;
+  double y = Y / divisor;
+
+  return Vector3(x, y, Y);
+}
+
+Vector3 xyY_to_XYZ(Vector3 xyY) {
+  double x = xyY.x;
+  double y = xyY.y;
+  double Y = xyY.z;
+
+  double multiplo = Y / max(y, 1e-6);
+
+  double z = 1.0 - x - y;
+  double X = x * multiplo;
+  double Z = z * multiplo;
+
+  return Vector3(X, Y, Z);
+}
+
+const double ip = 0.58535; // linear length
+const double k1 = 0.83802; // linear strength
+const double k3 = 0.74204; // shoulder strength
+
+double f2(double Y, double k1, double k3, double ip) {
+  ip /= k1;
+  double k2 = (k1 * ip) * (1.0 - k3);
+  double k4 = (k1 * ip) - (k2 * log(1.0 - k3));
+  return Y < ip ? Y * k1 : log((Y / ip) - k3) * k2 + k4;
+}
+
+double tonemapping(double x) {
+  const double over_white = 1019.0 / 940.0; // 109% range (super-whites)
+  return f2(x, k1, k3, ip) / over_white;
+}
+
+double gamma2_2(double value) {
+  return value > 0 ? pow(value, 1 / 2.2).toDouble() : 0;
+}
+
+Vector3 gammaColor(Vector3 color) {
+  return Vector3(
+    gamma2_2(color.x),
+    gamma2_2(color.y),
+    gamma2_2(color.z),
+  );
+}
+
+void applyGamma(Float32List data) {
+  for (var i = 0; i < data.length; i += 3) {
+    data[i] = gamma2_2(data[i]);
+    data[i + 1] = gamma2_2(data[i + 1]);
+    data[i + 2] = gamma2_2(data[i + 2]);
+  }
+}
+
+double convertRange(
+    double value, double inMin, double inMax, double outMin, double outMax) {
+  return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+}
+
+Vector3 normalizeColor(
+    Vector3 color, double inMin, double inMax, double outMin, double outMax) {
+  return Vector3(
+    convertRange(color.x, inMin, inMax, outMin, outMax),
+    convertRange(color.y, inMin, inMax, outMin, outMax),
+    convertRange(color.z, inMin, inMax, outMin, outMax),
+  );
+}
+
+void normalizeImage(Float32List data, double minOut, double maxOut) {
+  final minValue = data.reduce(min);
+  final maxValue = data.reduce(max);
+
+  for (var i = 0; i < data.length; i += 3) {
+    var color = Vector3(data[i], data[i + 1], data[i + 2]);
+    color = normalizeColor(color, minValue, maxValue, minOut, maxOut);
+    data[i] = color.x;
+    data[i + 1] = color.y;
+    data[i + 2] = color.z;
+  }
+}
+
+void applyHdrToSdrTonemap(Float32List data) {
+  var maxValue = data.reduce(max);
+  var minValue = data.reduce(min);
+
+  for (var i = 0; i < data.length; i += 3) {
+    final r = data[i];
+    final g = data[i + 1];
+    final b = data[i + 2];
+
+    var color = Vector3(r, g, b);
+
+    color = applyBt2020Filter(color);
+    // color = applyGammaFilter(color);
+
+    data[i] = color.x;
+    data[i + 1] = color.y;
+    data[i + 2] = color.z;
+
+    maxValue = max(maxValue, max(color.x, max(color.y, color.z)));
+    minValue = min(minValue, min(color.x, min(color.y, color.z)));
+  }
+
+  print('max value: $maxValue');
+  print('min value: $minValue');
+}
+
+Vector3 applyBt2020Filter(Vector3 color) {
+  // final r = color.r;
+  // final g = color.g;
+  // final b = color.b;
+
+  // double x = (0.6274 + 1e-6) * r + (0.0691 + 1e-6) * g + (0.0163 + 1e-6) * b;
+  // double y = (0.3292 + 1e-6) * r + (0.9193 + 1e-6) * g + (0.0937 + 1e-6) * b;
+  // double z = (0.0433 + 1e-6) * r + (0.0164 + 1e-6) * g + (0.7106 + 1e-6) * b;
+
+  // // Convert XYZ to sRGB
+  // double rPrime =
+  //     (3.2406 + 1e-6) * x - (1.5372 + 1e-6) * y - (0.4986 + 1e-6) * z;
+  // double gPrime =
+  //     -(0.9689 + 1e-6) * x + (1.8758 + 1e-6) * y + (0.0415 + 1e-6) * z;
+  // double bPrime =
+  //     (0.0557 + 1e-6) * x - (0.2040 + 1e-6) * y + (1.0570 + 1e-6) * z;
+
+  // return Vector3(rPrime, g, bPrime);
+  // color = transferBt709(color);
+  // color = transferBt709Inverse(color);
+  color = inversePqColor(color);
+  // // color = srgbD50ToXyz(color);
+  // // color = srgbD65ToXyz(color);
+  // // color = srgbWideGamutToXyz(color);
+  color = bt2020rgbToXyz(color);
+
+  // color = XYZ_to_xyY(color);
+  // color = Vector3(color.x, color.y, tonemapping(color.z));
+  // color = xyY_to_XYZ(color);
+
+  // // color = xyzToSrgbD50(color);
+  // // color = xyzToSrgbD65(color);
+  // // color = xyzToSrgbWideGamut(color);
+  // color = xyzToBt2020Rgb(color);
+  // color = transferSrgb(color);
+  color = transferSrgbInverse(color);
+
+  // color = gammaColor(color);
+  color = pqColor(color);
+
+  // color = Vector3(
+  //   color.r.clamp(0.0, 1.0),
+  //   color.g.clamp(0.0, 1.0),
+  //   color.b.clamp(0.0, 1.0),
+  // );
+
+  return color;
+}
+
+Vector3 applyGammaFilter(Vector3 color) {
+  color = inversePqColor(color);
+  color = bt2020rgbToXyz(color);
+  color = XYZ_to_xyY(color);
+  color = Vector3(color.x, color.y, tonemapping(color.z));
+  color = xyY_to_XYZ(color);
+  color = xyzToBt2020Rgb(color);
+  // color = bt2020To709(color);
+  color = gammaColor(color);
+  // color = Vector3(
+  //   color.r.clamp(0.0, 1.0),
+  //   color.g.clamp(0.0, 1.0),
+  //   color.b.clamp(0.0, 1.0),
+  // );
+  return color;
+}
+
+final bt2020Tobt709Matrix = Matrix3(
+  1.6605,
+  0.5876,
+  0.0728,
+  0.1246,
+  1.1329,
+  0.0083,
+  0.0182,
+  0.1006,
+  1.1187,
+);
+
+Vector3 bt2020To709(Vector3 bt2020) {
+  return (bt2020Tobt709Matrix.clone()) * bt2020;
+}
+
+Vector3 rgb709ToBt2020(Vector3 bt2020) {
+  return (bt2020Tobt709Matrix.clone()..invert()) * bt2020;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+const beta = 0.018053968510807;
+const alpha = 1.0 + 5.5 * beta;
+
+double bt709_r(double L) {
+  return L < beta ? 4.5 * L : alpha * pow(L, 0.45) - (alpha - 1.0);
+}
+
+Vector3 transferBt709(Vector3 color) {
+  return Vector3(
+    bt709_r(color.x),
+    bt709_r(color.y),
+    bt709_r(color.z),
+  );
+}
+
+double bt709_f(double V) {
+  return V < 4.5 * beta
+      ? V / 4.5
+      : pow((V + (alpha - 1.0)) / alpha, 1.0 / 0.45).toDouble();
+}
+
+Vector3 transferBt709Inverse(Vector3 color) {
+  return Vector3(
+    bt709_f(color.x),
+    bt709_f(color.y),
+    bt709_f(color.z),
+  );
+}
+
+const GAMMA = 2.4;
+const OFFSET = 0.055;
+
+// moncurve_r with gamma of 2.4 and offset of 0.055 matches the EOTF found in IEC 61966-2-1:1999 (sRGB)
+double moncurve_r(double y, double gamma, double offs) {
+  double yb =
+      pow(offs * gamma / ((gamma - 1.0) * (1.0 + offs)), gamma).toDouble();
+  double rs = pow((gamma - 1.0) / offs, gamma - 1.0).toDouble() *
+      pow((1.0 + offs) / gamma, gamma);
+  return y >= yb ? (1.0 + offs) * pow(y, 1.0 / gamma) - offs : y * rs;
+}
+
+Vector3 transferSrgb(Vector3 color) {
+  return Vector3(
+    moncurve_r(color.x, GAMMA, OFFSET),
+    moncurve_r(color.y, GAMMA, OFFSET),
+    moncurve_r(color.z, GAMMA, OFFSET),
+  );
+}
+
+// moncurve_r with gamma of 2.4 and offset of 0.055 matches the EOTF found in IEC 61966-2-1:1999 (sRGB)
+double moncurve_f(double x, double gamma, double offs) {
+  double fs = ((gamma - 1.0) / offs) *
+      pow(offs * gamma / ((gamma - 1.0) * (1.0 + offs)), gamma);
+  double xb = offs / (gamma - 1.0);
+  return x >= xb ? pow((x + offs) / (1.0 + offs), gamma).toDouble() : x * fs;
+}
+
+Vector3 transferSrgbInverse(Vector3 color) {
+  return Vector3(
+    moncurve_f(color.x, GAMMA, OFFSET),
+    moncurve_f(color.y, GAMMA, OFFSET),
+    moncurve_f(color.z, GAMMA, OFFSET),
+  );
 }

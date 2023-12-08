@@ -22,26 +22,6 @@ use std::sync::Arc;
 
 // Section: wire functions
 
-fn wire_platform_impl(port_: MessagePort) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, Platform, _>(
-        WrapInfo {
-            debug_name: "platform",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || move |task_callback| Result::<_, ()>::Ok(platform()),
-    )
-}
-fn wire_rust_release_mode_impl(port_: MessagePort) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, bool, _>(
-        WrapInfo {
-            debug_name: "rust_release_mode",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || move |task_callback| Result::<_, ()>::Ok(rust_release_mode()),
-    )
-}
 fn wire_init_decoder_impl(
     port_: MessagePort,
     jxl_bytes: impl Wire2Api<Vec<u8>> + UnwindSafe,
@@ -160,6 +140,7 @@ impl support::IntoDart for Frame {
             self.duration.into_into_dart().into_dart(),
             self.width.into_into_dart().into_dart(),
             self.height.into_into_dart().into_dart(),
+            self.icc.into_dart(),
         ]
         .into_dart()
     }
@@ -178,34 +159,13 @@ impl support::IntoDart for JxlInfo {
             self.height.into_into_dart().into_dart(),
             self.image_count.into_into_dart().into_dart(),
             self.duration.into_into_dart().into_dart(),
+            self.is_hdr.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl support::IntoDartExceptPrimitive for JxlInfo {}
 impl rust2dart::IntoIntoDart<JxlInfo> for JxlInfo {
-    fn into_into_dart(self) -> Self {
-        self
-    }
-}
-
-impl support::IntoDart for Platform {
-    fn into_dart(self) -> support::DartAbi {
-        match self {
-            Self::Unknown => 0,
-            Self::Android => 1,
-            Self::Ios => 2,
-            Self::Windows => 3,
-            Self::Unix => 4,
-            Self::MacIntel => 5,
-            Self::MacApple => 6,
-            Self::Wasm => 7,
-        }
-        .into_dart()
-    }
-}
-impl support::IntoDartExceptPrimitive for Platform {}
-impl rust2dart::IntoIntoDart<Platform> for Platform {
     fn into_into_dart(self) -> Self {
         self
     }
