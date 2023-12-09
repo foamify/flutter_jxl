@@ -1,3 +1,7 @@
+import 'dart:math';
+
+import 'package:vector_math/vector_math.dart';
+
 // https://github.com/jedypod/gamut-compress
 // https://github.com/ampas/aces-dev/blob/dev/transforms/ctl/lmt/LMT.Academy.ReferenceGamutCompress.ctl
 // Pick compressed color's chroma replace the orginal color's chroma in CIE-Lab.
@@ -6,9 +10,6 @@
 //!TYPE float
 //!MINIMUM 1.000001
 //!MAXIMUM 2
-import 'dart:math';
-
-import 'package:vector_math/vector_math.dart';
 
 const cyan_limit = 1.5187050250638159;
 
