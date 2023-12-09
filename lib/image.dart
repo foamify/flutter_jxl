@@ -1,3 +1,5 @@
+// ignore_for_file: constant_identifier_names
+
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
@@ -9,7 +11,11 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_rust_bridge_template/ffi.dart';
-import 'package:icc_parser/icc_parser.dart';
+import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/bt1886.dart';
+import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/bt1886_inv.dart';
+import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/pq.dart';
+import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/pq_inv.dart';
+import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/srgb_inv.dart';
 import 'dart:ui' as ui;
 
 import 'package:vector_math/vector_math.dart';
@@ -1264,56 +1270,6 @@ class MultiFrameJxlCodec implements JxlCodec {
   }
 }
 
-const m1 = 0.1593017578125;
-const m2 = 78.84375;
-const c1 = 0.8359375;
-const c2 = 18.851525;
-const c3 = 18.6875;
-
-const pqC = 1;
-
-double pq(double c) {
-  double L = c / pqC;
-  double Lm = pow(L, m1).toDouble();
-  double N = (c1 + c2 * Lm) / (1.0 + c3 * Lm);
-  N = pow(N, m2).toDouble();
-  return N;
-}
-
-double inversePq(double n) {
-  final top = max(
-    pow(n, 1 / m2) - c1,
-    0,
-  );
-  final bottom = c2 - c3 * pow(n, 1 / m2);
-  final result = pow(top / bottom, 1 / m1).toDouble();
-  return result * pqC;
-}
-
-Vector3 inversePqColor(Vector3 color) {
-  return Vector3(
-    inversePq(color.x),
-    inversePq(color.y),
-    inversePq(color.z),
-  );
-}
-
-Vector3 pqColor(Vector3 color) {
-  return Vector3(
-    pq(color.x),
-    pq(color.y),
-    pq(color.z),
-  );
-}
-
-void applyInversePq(Float32List data) {
-  for (var i = 0; i < data.length; i += 3) {
-    data[i] = inversePq(data[i]);
-    data[i + 1] = inversePq(data[i + 1]);
-    data[i + 2] = inversePq(data[i + 2]);
-  }
-}
-
 // srgb
 final srgbD65ToXyzMatrix = Matrix3(
   // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
@@ -1344,9 +1300,6 @@ final bt2020RgbToXyzMatrix = Matrix3(
   0, 0.028, 1.061,
 );
 
-Matrix3 get rgbToXyzMatrix => bt2020RgbToXyzMatrix.clone();
-Matrix3 get inverseRgbToXyzMatrix => bt2020RgbToXyzMatrix.clone()..invert();
-
 Vector3 srgbD65ToXyz(Vector3 color) {
   return (srgbD65ToXyzMatrix.clone()) * color;
 }
@@ -1372,11 +1325,11 @@ Vector3 xyzToSrgbD50(Vector3 color) {
 }
 
 Vector3 bt2020rgbToXyz(Vector3 color) {
-  return rgbToXyzMatrix.clone() * color;
+  return bt2020RgbToXyzMatrix.clone() * color;
 }
 
 Vector3 xyzToBt2020Rgb(Vector3 color) {
-  return inverseRgbToXyzMatrix.clone() * color;
+  return (bt2020RgbToXyzMatrix.clone()..invert()) * color;
 }
 
 Vector3 XYZ_to_xyY(Vector3 XYZ) {
@@ -1481,8 +1434,8 @@ void applyHdrToSdrTonemap(Float32List data) {
 
     var color = Vector3(r, g, b);
 
-    color = applyBt2020Filter(color);
-    // color = applyGammaFilter(color);
+    // color = applyBt2020Filter(color);
+    color = applyGammaFilter(color);
 
     data[i] = color.x;
     data[i + 1] = color.y;
@@ -1546,19 +1499,39 @@ Vector3 applyBt2020Filter(Vector3 color) {
 }
 
 Vector3 applyGammaFilter(Vector3 color) {
+  // color = chromaCorrectionColor(color);
+
   color = inversePqColor(color);
-  color = bt2020rgbToXyz(color);
-  color = XYZ_to_xyY(color);
-  color = Vector3(color.x, color.y, tonemapping(color.z));
-  color = xyY_to_XYZ(color);
-  color = xyzToBt2020Rgb(color);
-  // color = bt2020To709(color);
-  color = gammaColor(color);
-  // color = Vector3(
-  //   color.r.clamp(0.0, 1.0),
-  //   color.g.clamp(0.0, 1.0),
-  //   color.b.clamp(0.0, 1.0),
-  // );
+
+  // color = bt2020rgbToXyz(color);
+  // color = XYZ_to_xyY(color);
+  // color = Vector3(color.x, color.y, tonemapping(color.z));
+  // color = xyY_to_XYZ(color);
+  // color = xyzToBt2020Rgb(color);
+
+  // color = gammaColor(color);
+
+  // // color = bt2020To709(color);
+  // color = pqColor(color);
+
+  color = transfer1886(color);
+
+  // color = transferInverse1886(color);
+  // color = gamutMapJedypodColor(color);
+  // color = transferSrgb(color);
+  // color = transferHlg(color);
+  // // color = Vector3(
+  // //   color.r.clamp(0.0, 1.0),
+  // //   color.g.clamp(0.0, 1.0),
+  // //   color.b.clamp(0.0, 1.0),
+  // // );
+
+  // color = clipBothColor(color);
+  // color = transferInverseHlg(color);
+  // color = inversePqColor(color);
+  // color = chromaCorrectionColor(color);
+  // color = gamutMapJedypodColor(color);
+  // color = transfer1886(color);
   return color;
 }
 
@@ -1610,41 +1583,5 @@ Vector3 transferBt709Inverse(Vector3 color) {
     bt709_f(color.x),
     bt709_f(color.y),
     bt709_f(color.z),
-  );
-}
-
-const GAMMA = 2.4;
-const OFFSET = 0.055;
-
-// moncurve_r with gamma of 2.4 and offset of 0.055 matches the EOTF found in IEC 61966-2-1:1999 (sRGB)
-double moncurve_r(double y, double gamma, double offs) {
-  double yb =
-      pow(offs * gamma / ((gamma - 1.0) * (1.0 + offs)), gamma).toDouble();
-  double rs = pow((gamma - 1.0) / offs, gamma - 1.0).toDouble() *
-      pow((1.0 + offs) / gamma, gamma);
-  return y >= yb ? (1.0 + offs) * pow(y, 1.0 / gamma) - offs : y * rs;
-}
-
-Vector3 transferSrgb(Vector3 color) {
-  return Vector3(
-    moncurve_r(color.x, GAMMA, OFFSET),
-    moncurve_r(color.y, GAMMA, OFFSET),
-    moncurve_r(color.z, GAMMA, OFFSET),
-  );
-}
-
-// moncurve_r with gamma of 2.4 and offset of 0.055 matches the EOTF found in IEC 61966-2-1:1999 (sRGB)
-double moncurve_f(double x, double gamma, double offs) {
-  double fs = ((gamma - 1.0) / offs) *
-      pow(offs * gamma / ((gamma - 1.0) * (1.0 + offs)), gamma);
-  double xb = offs / (gamma - 1.0);
-  return x >= xb ? pow((x + offs) / (1.0 + offs), gamma).toDouble() : x * fs;
-}
-
-Vector3 transferSrgbInverse(Vector3 color) {
-  return Vector3(
-    moncurve_f(color.x, GAMMA, OFFSET),
-    moncurve_f(color.y, GAMMA, OFFSET),
-    moncurve_f(color.z, GAMMA, OFFSET),
   );
 }
