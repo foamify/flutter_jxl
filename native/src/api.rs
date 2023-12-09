@@ -12,9 +12,9 @@ use std::{
     thread,
 };
 
+use cint::Bt2020;
 use flutter_rust_bridge::{frb, ZeroCopyBuffer};
 pub use jxl_oxide::{CropInfo, JxlImage};
-use maplibre::style::Bt2020;
 
 lazy_static::lazy_static! {
     static ref DECODERS: RwLock<HashMap<String, JxlDecoder>> = {
@@ -227,7 +227,7 @@ fn _get_next_frame(decoder: &mut Decoder, crop: Option<CropInfo>) -> CodecRespon
 
         return CodecResponse {
             frame: Frame {
-                data: ZeroCopyBuffer(convert_to_bt2020_and_apply_pq_gamma(_data)),
+                data: ZeroCopyBuffer(apply_pq_gamma(_data)),
                 duration: render.duration() as f64,
                 width: render_image.width() as u32,
                 height: render_image.height() as u32,
@@ -247,21 +247,23 @@ fn _get_next_frame(decoder: &mut Decoder, crop: Option<CropInfo>) -> CodecRespon
     }
 }
 
-fn convert_to_bt2020_and_apply_pq_gamma(input: Vec<f32>) -> Vec<f32> {
+fn apply_pq_gamma(input: Vec<f32>) -> Vec<f32> {
     let mut output = Vec::new();
 
-    for color in input {
+    for color in input.chunks(3) {
         // Convert to BT.2020
         let bt2020 = Bt2020 {
-            r: color,
-            g: color,
-            b: color,
+            r: color[0],
+            g: color[1],
+            b: color[2],
         };
 
-        // Apply PQ gamma correction
-        let pq_gamma_corrected = pq_gamma_correction(bt2020.r);
+        // let colorConvert = CintTy;
 
-        output.push(pq_gamma_corrected);
+        // Apply PQ gamma correction
+        output.push(pq_gamma_correction(bt2020.r));
+        output.push(pq_gamma_correction(bt2020.g));
+        output.push(pq_gamma_correction(bt2020.b));
     }
 
     output

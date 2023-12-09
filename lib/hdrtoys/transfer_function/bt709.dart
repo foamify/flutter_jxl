@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:vector_math/vector_math_64.dart';
+import 'package:vector_math/vector_math.dart';
 
 const beta = 0.018053968510807;
 const alpha = 1.0 + 5.5 * beta;

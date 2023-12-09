@@ -1505,6 +1505,7 @@ Vector3 applyGammaFilter(Vector3 color) {
   // color = chromaCorrectionColor(color);
 
   color = transferPqInverse(color);
+  // color = transferPq(color);
 
   // color = bt2020rgbToXyz(color);
   // color = XYZ_to_xyY(color);

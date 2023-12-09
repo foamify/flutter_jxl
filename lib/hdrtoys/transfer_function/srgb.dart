@@ -11,7 +11,9 @@ double moncurve_r(double y, double gamma, double offs) {
       pow(offs * gamma / ((gamma - 1.0) * (1.0 + offs)), gamma).toDouble();
   double rs = pow((gamma - 1.0) / offs, gamma - 1.0).toDouble() *
       pow((1.0 + offs) / gamma, gamma);
-  return y >= yb ? (1.0 + offs) * pow(y, 1.0 / gamma) - offs : y * rs;
+  return (y >= yb ? (1.0 + offs) * pow(y, 1.0 / gamma) - offs : y * rs) *
+      1000 /
+      203;
 }
 
 Vector3 transferSrgb(Vector3 color) {
