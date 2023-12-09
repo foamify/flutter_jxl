@@ -13,8 +13,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_rust_bridge_template/ffi.dart';
 import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/bt1886.dart';
 import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/bt1886_inv.dart';
+import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/hlg.dart';
+import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/hlg_inv.dart';
 import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/pq.dart';
 import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/pq_inv.dart';
+import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/srgb.dart';
 import 'package:flutter_rust_bridge_template/hdrtoys/transfer_function/srgb_inv.dart';
 import 'dart:ui' as ui;
 
@@ -1469,7 +1472,7 @@ Vector3 applyBt2020Filter(Vector3 color) {
   // return Vector3(rPrime, g, bPrime);
   // color = transferBt709(color);
   // color = transferBt709Inverse(color);
-  color = inversePqColor(color);
+  color = transferPqInverse(color);
   // // color = srgbD50ToXyz(color);
   // // color = srgbD65ToXyz(color);
   // // color = srgbWideGamutToXyz(color);
@@ -1487,7 +1490,7 @@ Vector3 applyBt2020Filter(Vector3 color) {
   color = transferSrgbInverse(color);
 
   // color = gammaColor(color);
-  color = pqColor(color);
+  color = transferPq(color);
 
   // color = Vector3(
   //   color.r.clamp(0.0, 1.0),
@@ -1501,7 +1504,7 @@ Vector3 applyBt2020Filter(Vector3 color) {
 Vector3 applyGammaFilter(Vector3 color) {
   // color = chromaCorrectionColor(color);
 
-  color = inversePqColor(color);
+  color = transferPqInverse(color);
 
   // color = bt2020rgbToXyz(color);
   // color = XYZ_to_xyY(color);

@@ -43,7 +43,7 @@ Vector3 HLG_to_Y(Vector3 HLG) {
   return displayLinear;
 }
 
-Vector3 transferInverseHlg(Vector3 color) {
+Vector3 transferHlgInverse(Vector3 color) {
   color.rgb = HLG_to_Y(color.rgb) / L_sdr;
 
   return color;

@@ -21,7 +21,7 @@ double inversePq(double n) {
   return result * pqC;
 }
 
-Vector3 inversePqColor(Vector3 color) {
+Vector3 transferPqInverse(Vector3 color) {
   return Vector3(
     inversePq(color.x),
     inversePq(color.y),

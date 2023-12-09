@@ -18,7 +18,7 @@ double pq(double c) {
   return N;
 }
 
-Vector3 pqColor(Vector3 color) {
+Vector3 transferPq(Vector3 color) {
   return Vector3(
     pq(color.x),
     pq(color.y),
