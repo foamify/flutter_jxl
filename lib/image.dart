@@ -1556,32 +1556,3 @@ Vector3 rgb709ToBt2020(Vector3 bt2020) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
-
-const beta = 0.018053968510807;
-const alpha = 1.0 + 5.5 * beta;
-
-double bt709_r(double L) {
-  return L < beta ? 4.5 * L : alpha * pow(L, 0.45) - (alpha - 1.0);
-}
-
-Vector3 transferBt709(Vector3 color) {
-  return Vector3(
-    bt709_r(color.x),
-    bt709_r(color.y),
-    bt709_r(color.z),
-  );
-}
-
-double bt709_f(double V) {
-  return V < 4.5 * beta
-      ? V / 4.5
-      : pow((V + (alpha - 1.0)) / alpha, 1.0 / 0.45).toDouble();
-}
-
-Vector3 transferBt709Inverse(Vector3 color) {
-  return Vector3(
-    bt709_f(color.x),
-    bt709_f(color.y),
-    bt709_f(color.z),
-  );
-}
