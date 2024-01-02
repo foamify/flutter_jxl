@@ -38,8 +38,6 @@ dependencies:
   flutter_rust_bridge: ^1.45.0
   meta: ^1.8.0
   uuid: ^4.1.0
-  vector_math: ^2.1.4
-  icc_parser: ^0.0.4
 
 dev_dependencies:
   flutter_test:

@@ -12,8 +12,8 @@ use std::{
     thread,
 };
 
-use cint::Bt2020;
 use flutter_rust_bridge::{frb, ZeroCopyBuffer};
+use jxl_oxide::EnumColourEncoding;
 pub use jxl_oxide::{CropInfo, JxlImage};
 
 lazy_static::lazy_static! {
@@ -43,7 +43,12 @@ pub fn init_decoder(jxl_bytes: Vec<u8>, key: String) -> JxlInfo {
 
     thread::spawn(move || {
         let reader = Cursor::new(jxl_bytes);
-        let image = JxlImage::from_reader(reader).expect("Failed to decode image");
+        let mut image = JxlImage::builder()
+            .read(reader)
+            .expect("Failed to decode image");
+        image.request_color_encoding(EnumColourEncoding::srgb(
+            jxl_oxide::color::RenderingIntent::Perceptual,
+        ));
         let width = image.width();
         let height = image.height();
         let image_count = image.num_loaded_frames();
@@ -177,7 +182,7 @@ pub fn get_next_frame(key: String, crop_info: Option<CropInfo>) -> Frame {
         Ok(result) => result,
         Err(e) => panic!("Decoder connection lost. {}", e),
     };
-    let result = decoder.response_rx.recv().unwrap();
+    let result = decoder.response_rx.recv().expect("Failed to receive frame");
     result.frame
 }
 
@@ -206,36 +211,45 @@ fn _reset_decoder() -> CodecResponse {
 }
 
 fn _get_next_frame(decoder: &mut Decoder, crop: Option<CropInfo>) -> CodecResponse {
+    println!("test 001");
     let image = &decoder.image;
 
+    println!("test 002");
+
+    println!("test 003");
     let next = (decoder.index + 1) % decoder.count;
 
+    println!("test 004");
     decoder.index = next;
 
+    println!("test 005");
     let render = image
         .render_frame_cropped(next, crop)
         .expect("Failed to render frame");
 
+    println!("test 006");
     let render_image = render.image_all_channels();
 
+    println!("test 007");
     let _data = render_image.buf().to_vec();
 
-    if image.image_header().metadata.bit_depth.bits_per_sample() > 8 {
+    // if image.image_header().metadata.bit_depth.bits_per_sample() > 8 {
 
-        println!("ISHDR, PROCESSING...");
-        let icc = image.rendered_icc();
+    //     println!("ISHDR, PROCESSING...");
+    //     let icc = image.rendered_icc();
 
-        return CodecResponse {
-            frame: Frame {
-                data: ZeroCopyBuffer(apply_pq_gamma(_data)),
-                duration: render.duration() as f64,
-                width: render_image.width() as u32,
-                height: render_image.height() as u32,
-                icc: Some(ZeroCopyBuffer(icc)),
-            },
-        };
-    }
+    //     return CodecResponse {
+    //         frame: Frame {
+    //             data: ZeroCopyBuffer(apply_pq_gamma(_data)),
+    //             duration: render.duration() as f64,
+    //             width: render_image.width() as u32,
+    //             height: render_image.height() as u32,
+    //             icc: Some(ZeroCopyBuffer(icc)),
+    //         },
+    //     };
+    // }
 
+    println!("test 008");
     CodecResponse {
         frame: Frame {
             data: ZeroCopyBuffer(_data),
@@ -247,46 +261,9 @@ fn _get_next_frame(decoder: &mut Decoder, crop: Option<CropInfo>) -> CodecRespon
     }
 }
 
-fn apply_pq_gamma(input: Vec<f32>) -> Vec<f32> {
-    let mut output = Vec::new();
-
-    for color in input.chunks(3) {
-        // Convert to BT.2020
-        let bt2020 = Bt2020 {
-            r: color[0],
-            g: color[1],
-            b: color[2],
-        };
-
-        // let colorConvert = CintTy;
-
-        // Apply PQ gamma correction
-        output.push(pq_gamma_correction(bt2020.r));
-        output.push(pq_gamma_correction(bt2020.g));
-        output.push(pq_gamma_correction(bt2020.b));
-    }
-
-    output
-}
-
-fn pq_gamma_correction(input: f32) -> f32 {
-    let a = 0.0225;
-    let b = 0.0000;
-    let c = 0.98;
-    let d = 0.015;
-
-    if input <= 0.0 {
-        0.0
-    } else if input < d {
-        ((input - b) / c) * ((input - b) / c) * ((input - b) / c)
-    } else {
-        ((input - b) / c) + a
-    }
-}
-
 pub fn is_jxl(jxl_bytes: Vec<u8>) -> bool {
     let reader = Cursor::new(jxl_bytes);
-    let image = JxlImage::from_reader(reader);
+    let image = JxlImage::builder().read(reader);
 
     image.is_ok()
 }

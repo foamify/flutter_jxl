@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_rust_bridge_template/ffi.dart';
 import 'package:flutter_rust_bridge_template/image.dart';
 
 void main() {
@@ -40,29 +41,35 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
+      // body: Align(
+      //   alignment: Alignment.bottomCenter,
+      //   child: JxlImage.asset(
+      //     'assets/testhdr2.jxl',
+      //   ),
+      // ),
       body: Center(
         child: SingleChildScrollView(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              // JxlImage.asset(
-              //   'assets/testanim.jxl',
-              // ),
-              // JxlImage.asset(
-              //   'assets/testanim2.jxl',
-              //   cropInfo:
-              //       const CropInfo(width: 100, height: 300, left: 10, top: 0),
-              // ),
-              // JxlImage.network(
-              //   'https://raw.githubusercontent.com/libjxl/conformance/master/testcases/animation_icos4d/input.jxl',
-              // ),
-              // JxlImage.asset(
-              //   'assets/testalpha.jxl',
-              // ),
-              // JxlImage.asset(
-              //   'assets/jxlImage.jxl',
-              //   key: const Key('jxlImage'),
-              // ),
+              JxlImage.asset(
+                'assets/testanim.jxl',
+              ),
+              JxlImage.asset(
+                'assets/testanim2.jxl',
+                cropInfo:
+                    const CropInfo(width: 100, height: 300, left: 10, top: 0),
+              ),
+              JxlImage.network(
+                'https://raw.githubusercontent.com/libjxl/conformance/master/testcases/animation_icos4d/input.jxl',
+              ),
+              JxlImage.asset(
+                'assets/testalpha.jxl',
+              ),
+              JxlImage.asset(
+                'assets/jxlImage.jxl',
+                key: const Key('jxlImage'),
+              ),
               JxlImage.asset(
                 'assets/testhdr.jxl',
                 // cropInfo:
