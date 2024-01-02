@@ -12,5 +12,5 @@ crate-type = ["cdylib", "staticlib"]
 flutter_rust_bridge = "=1.82.4"
 jxl-oxide = { git = "https://github.com/tirr-c/jxl-oxide.git"}
 lazy_static = "1.4.0"
-cmake = "=0.1.48"
+cmake = "=0.1.50"
 cint = "0.3.1"
